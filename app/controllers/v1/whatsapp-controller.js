@@ -1,4 +1,4 @@
-import whatsappReceiveService from "../services/whatsapp/receive-service.js"
+import whatsappReceiveService from "../../services/whatsapp/receive-service.js"
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET
