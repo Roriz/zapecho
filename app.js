@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import fastifyPostgres from '@fastify/postgres'
 
 import routes from './configs/routers.js'
+import database from './configs/database.js'
 
 const fastify = Fastify({
   logger: true
@@ -22,4 +23,6 @@ fastify.listen({
     fastify.log.error(err)
     process.exit(1)
   }
+  database()
+  fastify.log.info(`server listening on ${address}`)
 })
