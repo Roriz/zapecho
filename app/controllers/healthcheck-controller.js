@@ -1,6 +1,6 @@
 export const index = {
-  handler: function (_, reply) {
-    reply.send({ status: "ok" });
+  handler(_, reply) {
+    reply.send({ status: 'ok' });
   },
 };
 

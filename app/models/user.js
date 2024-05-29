@@ -1,4 +1,4 @@
-import getDb from "./base-model.js";
+import getDb from './base-model.js';
 
 /**
  * @typedef {Object} User
@@ -15,6 +15,6 @@ import getDb from "./base-model.js";
  *
  * @returns {Knex.QueryBuilder<User, {}>}
  */
-const Users = () => getDb("users");
+const Users = () => getDb('users');
 
 export default Users;

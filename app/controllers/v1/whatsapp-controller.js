@@ -1,51 +1,51 @@
-import whatsappReceiveService from "../../services/whatsapp/receive-service.js";
+import whatsappReceiveService from '../../services/whatsapp/receive-service.js';
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
 
-export const verify = {
-  handler: async function (req, reply) {
+export const whatsappVerify = {
+  handler(req, reply) {
     if (
-      req.query["hub.mode"] === "subscribe" &&
-      req.query["hub.verify_token"] === VERIFY_TOKEN
+      req.query['hub.mode'] === 'subscribe'
+      && req.query['hub.verify_token'] === VERIFY_TOKEN
     ) {
-      reply.send(req.query["hub.challenge"]);
+      reply.send(req.query['hub.challenge']);
     } else {
       reply.code(403).send({});
     }
   },
 };
 
-const is_valid_signature = (req) => {
-  const signature = req.headers["x-hub-signature"];
+const isValidSignature = (req) => {
+  const signature = req.headers['x-hub-signature'];
 
   if (!signature) {
     return false;
   }
 
-  const [, signatureHash] = signature.split("=");
+  const [, signatureHash] = signature.split('=');
 
   const expectedHash = crypto
-    .createHmac("sha1", APP_SECRET)
+    .createHmac('sha1', APP_SECRET)
     .update(JSON.stringify(req.body))
-    .digest("hex");
+    .digest('hex');
 
   return signatureHash !== expectedHash;
 };
 
-export const webhook = {
-  handler: async function (req, reply) {
-    if (is_valid_signature(req)) {
+export const whatsappWebhook = {
+  handler(req, reply) {
+    if (isValidSignature(req)) {
       return reply.code(400).send({});
     }
 
     whatsappReceiveService();
 
-    reply.send({});
+    return reply.send({});
   },
 };
 
 export default {
-  verify,
-  webhook,
+  whatsappVerify,
+  whatsappWebhook,
 };

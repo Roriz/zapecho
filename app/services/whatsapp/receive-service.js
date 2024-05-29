@@ -1,8 +1,8 @@
-import User from "../../models/user.js";
+import User from '../../models/user.js';
 
 export default function whatsappReceiveService() {
   User()
-    .count("id")
+    .count('id')
     .then((rows) => {
       console.log(`Users count - ${rows[0].count}`);
     });

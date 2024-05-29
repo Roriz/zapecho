@@ -5,7 +5,8 @@
   "scripts": {
     "test": "node --test test/**/*.test.js",
     "start": "node app.js",
-    "dev": "npm run migrate && nodemon -q --watch . --exec 'npm run start'",
+    "dev": "npm run migrate && nodemon -q --watch . --exec 'node app.js'",
+    "lint": "npx eslint . --ext .js --fix",	
     "migrate": "npx knex migrate:latest --esm --knexfile ./configs/database.js"
   },
   "dependencies": {
@@ -20,9 +21,8 @@
     "pg": "^8.11.5"
   },
   "devDependencies": {
-    "@eslint/js": "^9.3.0",
-    "eslint": "^9.3.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
     "globals": "^15.3.0",
     "nodemon": "^3.1.0"
   }
