@@ -1,28 +1,28 @@
-import 'dotenv/config'
+import "dotenv/config";
 
-import Fastify from 'fastify'
-import fastifyPostgres from '@fastify/postgres'
+import Fastify from "fastify";
 
-import routes from './configs/routers.js'
-import database from './configs/database.js'
+import routes from "./configs/routers.js";
+import database from "./configs/database.js";
 
 const fastify = Fastify({
-  logger: true
-})
+  logger: true,
+});
 
-fastify.register(routes)
-fastify.register(fastifyPostgres, {
-  connectionString: `${process.env.DATABASE_URL}/${process.env.DATABASE_NAME}`
-})
+fastify.register(routes);
 
-fastify.listen({
-  port: process.env.PORT,
-  host: '0.0.0.0'
-}, function (err, address) {
-  if (err) {
-    fastify.log.error(err)
-    process.exit(1)
-  }
-  database()
-  fastify.log.info(`server listening on ${address}`)
-})
+fastify.listen(
+  {
+    port: process.env.PORT,
+    host: "0.0.0.0",
+  },
+  (err, address) => {
+    if (err) {
+      fastify.log.error(err);
+      process.exit(1);
+    }
+    fastify.log.info(`server listening on ${address}`);
+    database();
+    fastify.log.info(`database connected`);
+  },
+);

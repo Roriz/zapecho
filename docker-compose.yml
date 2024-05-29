@@ -1,8 +1,9 @@
-version: '3.8'
+version: "3.8"
 services:
   app:
     build: .
-    command: bash -c "npm i && npm run dev"
+    command: bash -c "tail -f /dev/null"
+    # command: bash -c "npm i && npm init @eslint/config@latest && npm run dev"
     ports:
       - 8081:8081
     volumes:

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import "dotenv/config";
 
 import Postgrator from "postgrator";
 import pg from "pg";
