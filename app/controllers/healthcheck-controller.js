@@ -1,5 +1,5 @@
 export const healthcheck = {
-  handler(_, reply) {
+  handler(req, reply) {
     reply.send({ status: 'ok' });
   },
 };

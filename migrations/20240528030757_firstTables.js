@@ -5,6 +5,7 @@ export const up = function knexUp(knex) {
       table.timestamp('created_at', { precision: 6 }).notNullable();
       table.timestamp('updated_at', { precision: 6 }).notNullable();
       table.string('identifier').notNullable();
+      table.string('phone').notNullable();
       table.string('name').notNullable();
       table.timestamp('last_message_at', { precision: 6 });
       table.timestamp('last_user_interaction_at', { precision: 6 });
@@ -66,14 +67,8 @@ export const up = function knexUp(knex) {
       table.timestamp('whatsapp_created_at', { precision: 6 });
 
       table.foreign('user_id').references('users.id').deferrable('deferred');
-      table
-        .foreign('client_id')
-        .references('clients.id')
-        .deferrable('deferred');
-      table
-        .foreign('agent_user_id')
-        .references('agent_users.id')
-        .deferrable('deferred');
+      table.foreign('client_id').references('clients.id').deferrable('deferred');
+      table.foreign('agent_user_id').references('agent_users.id').deferrable('deferred');
     }),
   ]);
 };

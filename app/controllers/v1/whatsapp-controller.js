@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import whatsappReceiveService from '../../services/whatsapp/receive-service.js';
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
@@ -17,31 +18,22 @@ export const whatsappVerify = {
 };
 
 const isValidSignature = (req) => {
-  const signature = req.headers['x-hub-signature'];
+  const headerSignature = req.headers['x-hub-expectedSignature'];
 
-  if (!signature) {
-    return false;
-  }
+  const validSignature = crypto.createHmac('sha1', APP_SECRET).update(req.rawBody).digest('hex');
 
-  const [, signatureHash] = signature.split('=');
-
-  const expectedHash = crypto
-    .createHmac('sha1', APP_SECRET)
-    .update(JSON.stringify(req.body))
-    .digest('hex');
-
-  return signatureHash !== expectedHash;
+  return headerSignature === `sha1=${validSignature}`;
 };
 
 export const whatsappWebhook = {
-  handler(req, reply) {
-    if (isValidSignature(req)) {
-      return reply.code(400).send({});
-    }
+  handler(req, reply, payload) {
+    if (!isValidSignature(req)) { return reply.code(400).send({}); }
 
-    whatsappReceiveService();
+    console.log('aeeeeeeeeeeeeeee');
 
-    return reply.send({});
+    // whatsappReceiveService(req.body);
+
+    reply.send({});
   },
 };
 
