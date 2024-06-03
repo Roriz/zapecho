@@ -1,4 +1,4 @@
-export const up = (knex) => Promise.all([
+exports.up = (knex) => Promise.all([
   knex.schema.createTable('users', (table) => {
     table.increments();
     table.timestamp('created_at', { precision: 6 }).notNullable();
@@ -70,7 +70,7 @@ export const up = (knex) => Promise.all([
   }),
 ]);
 
-export const down = (knex) => Promise.all([
+exports.down = (knex) => Promise.all([
   knex.raw('DROP TABLE IF EXISTS "users" CASCADE'),
   knex.raw('DROP TABLE IF EXISTS "agents" CASCADE'),
   knex.raw('DROP TABLE IF EXISTS "agent_users" CASCADE'),

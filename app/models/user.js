@@ -1,4 +1,4 @@
-import getDb from './base-model.js';
+const getDb = require('./base-model.js');
 
 /**
  * @typedef {Object} User
@@ -17,4 +17,4 @@ import getDb from './base-model.js';
  */
 const Users = () => getDb('users');
 
-export default Users;
+module.exports = Users;

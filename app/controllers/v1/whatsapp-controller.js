@@ -1,10 +1,10 @@
-import crypto from 'crypto';
-import whatsappReceiveService from '../../services/whatsapp/receive-service.js';
+const crypto = require('crypto');
+const whatsappReceiveService = require('../../services/whatsapp/receive-service.js');
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
 
-export const whatsappVerify = {
+const whatsappVerify = {
   handler(req, reply) {
     if (
       req.query['hub.mode'] === 'subscribe'
@@ -25,13 +25,10 @@ const isValidSignature = (req) => {
   return headerSignature === `sha1=${validSignature}`;
 };
 
-export const whatsappWebhook = {
-  handler(req, reply, payload) {
+const whatsappWebhook = {
+  handler(req, reply) {
     if (!isValidSignature(req)) { return reply.code(400).send({}); }
 
-    console.log('----------------');
-    console.log(payload);
-    console.log(req.body);
     const userParams = req.body.entry[0].changes[0].value.contacts[0];
     const messageParams = req.body.entry[0].changes[0].value.messages[0];
 
@@ -41,7 +38,6 @@ export const whatsappWebhook = {
   },
 };
 
-export default {
-  whatsappVerify,
-  whatsappWebhook,
-};
+module.exports = { whatsappVerify, whatsappWebhook };
+module.whatsappVerify = whatsappVerify;
+module.whatsappWebhook = whatsappWebhook;

@@ -1,6 +1,5 @@
 {
   "name": "chat-assistant",
-  "type": "module",
   "main": "app.js",
   "scripts": {
     "test": "node --test test/**/*.test.js",

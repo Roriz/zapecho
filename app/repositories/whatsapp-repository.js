@@ -1,4 +1,4 @@
-import axios from 'axios';
+const axios = require('axios');
 
 const ACCOUNT_ID = '316864934845721';
 const PERMANENT_TOKEN = 'EAAErNEdwc78BOwnb80X2vEnZBlHDGGmnGtoty3YJu4Fu60denQTeCO0jnBjLl7NtDiSUTIY6r7Iefbujy1XfpYWfjhb5wmj351ZCfWE0bzKrNuGEYBfrRXPRI8K5ZAL4vxuxhgHsqW5ZClLcBThDphOHbozce5XwBx2ko83ZBA1ZCrDH001vru17KJdqR3pqG9Jre27iFZAjDbYjiUGXZBEZD';
@@ -14,7 +14,7 @@ const DEFAULT_HEADERS = {
 //   templateName: 'hello_world',
 //   templateLocale: 'en_US',
 // })
-export const sendWhatsappMessage = async (message) => {
+const sendWhatsappMessage = async (message) => {
   const response = await axios.post(
     `${WHATSAPP_URL}/messages`,
     {
@@ -35,3 +35,5 @@ export const sendWhatsappMessage = async (message) => {
   );
   return response;
 };
+
+module.exports = { sendWhatsappMessage };

@@ -1,4 +1,4 @@
-import getDb from './base-model.js';
+const getDb = require('./base-model.js');
 
 /**
  * @typedef {Object} Message
@@ -25,4 +25,4 @@ import getDb from './base-model.js';
  */
 const Messages = () => getDb('messages');
 
-export default Messages;
+module.exports = Messages;

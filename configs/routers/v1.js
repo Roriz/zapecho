@@ -1,7 +1,7 @@
-import getRawBody from 'raw-body';
-import secureJson from 'secure-json-parse';
+const getRawBody = require('raw-body');
+const secureJson = require('secure-json-parse');
 
-import { whatsappVerify, whatsappWebhook } from '../../app/controllers/v1/whatsapp-controller.js';
+const { whatsappVerify, whatsappWebhook } = require('../../app/controllers/v1/whatsapp-controller.js');
 
 function preparsingRawBody(request, reply, payload, done) {
   const applyLimit = request.routeOptions.bodyLimit;
@@ -30,7 +30,7 @@ function almostDefaultJsonParser(app) {
   };
 }
 
-export default function v1Routers(app, _, done) {
+function v1Routers(app, _, done) {
   // eslint-disable-next-line no-param-reassign
   app.addHook('onRoute', (routeOptions) => { routeOptions.preParsing = [preparsingRawBody]; });
   app.addContentTypeParser(['application/json'], { parseAs: 'buffer' }, almostDefaultJsonParser(app));
@@ -40,3 +40,5 @@ export default function v1Routers(app, _, done) {
 
   done();
 }
+
+module.exports = v1Routers;

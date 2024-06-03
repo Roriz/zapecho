@@ -1,5 +1,5 @@
-import knex from 'knex';
-import envParams from './env_params.js';
+const knex = require('knex');
+const envParams = require('./env_params.js');
 
 const configs = {
   client: 'pg',
@@ -7,14 +7,9 @@ const configs = {
   migrations: {
     directory: '../migrations',
   },
-  disableMigrationsListValidation: true,
-  disableTransactions: true,
-  pool: {
-    min: 2,
-    max: 10,
-  },
 };
 
-export const db = () => knex(configs);
+const db = () => knex(configs);
 
-export default configs;
+module.exports = configs;
+module.exports.db = db;

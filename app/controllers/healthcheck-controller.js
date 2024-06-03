@@ -1,9 +1,7 @@
-export const healthcheck = {
+const healthcheck = {
   handler(req, reply) {
     reply.send({ status: 'ok' });
   },
 };
 
-export default {
-  healthcheck,
-};
+module.exports = healthcheck;

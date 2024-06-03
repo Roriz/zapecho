@@ -1,6 +1,6 @@
-import { db } from '../../configs/database.js';
+const { db } = require('../../configs/database.js');
 
-export default function getDb(tableName) {
+function getDb(tableName) {
   const query = db()(tableName);
   const originalInsert = query.insert;
   query.insert = function zeInsert(...args) {
@@ -13,3 +13,5 @@ export default function getDb(tableName) {
 
   return query;
 }
+
+module.exports = getDb;

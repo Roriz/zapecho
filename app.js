@@ -1,9 +1,9 @@
-import 'dotenv/config';
+require('dotenv').config();
 
-import Fastify from 'fastify';
+const Fastify = require('fastify');
 
-import routes from './configs/routers.js';
-import { db } from './configs/database.js';
+const routes = require('./configs/routers.js');
+const { db } = require('./configs/database.js');
 
 const fastify = Fastify({
   logger: true,
@@ -16,12 +16,11 @@ fastify.listen(
     port: process.env.PORT,
     host: '0.0.0.0',
   },
-  (err, address) => {
+  (err) => {
     if (err) {
       fastify.log.error(err);
       process.exit(1);
     }
-    fastify.log.info(`server listening on ${address}`);
     db();
     fastify.log.info('database connected');
   },

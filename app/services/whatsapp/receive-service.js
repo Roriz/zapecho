@@ -1,5 +1,5 @@
-import User from '../../models/user.js';
-import Message from '../../models/message.js';
+const User = require('../../models/user.js');
+const Message = require('../../models/message.js');
 
 const findOrInsertUser = async (params) => {
   const user = await User().where('identifier', params.wa_id).first();
@@ -21,7 +21,7 @@ const insertMessage = (params, user) => Message().insert({
   user_read_at: params.read_at,
 });
 
-export default async function whatsappReceiveService(userParams, messageParams) {
+module.exports = async function whatsappReceiveService(userParams, messageParams) {
   const user = await findOrInsertUser(userParams);
   return insertMessage(messageParams, user);
-}
+};

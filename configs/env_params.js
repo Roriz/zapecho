@@ -1,16 +1,16 @@
-export function development() {
+function development() {
   return {
     DATABASE_NAME: 'zapecho_development',
   };
 }
 
-export function production() {
+function production() {
   return {
     DATABASE_NAME: 'zapecho_production',
   };
 }
 
-export default function envParams() {
+function envParams() {
   const params = {
     development,
     production,
@@ -18,3 +18,5 @@ export default function envParams() {
 
   return (params[process.env.NODE_ENV] || development)();
 }
+
+module.exports = envParams;
