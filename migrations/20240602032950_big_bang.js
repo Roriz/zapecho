@@ -50,8 +50,8 @@ export const up = (knex) => Promise.all([
     table.timestamp('created_at', { precision: 6 }).notNullable();
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.bigInteger('user_id').notNullable();
-    table.bigInteger('client_id').notNullable();
-    table.bigInteger('agent_user_id').notNullable();
+    table.bigInteger('client_id');
+    table.bigInteger('agent_user_id');
     table.text('body');
     table.string('message_type').notNullable();
     table.string('template_name');
@@ -71,9 +71,9 @@ export const up = (knex) => Promise.all([
 ]);
 
 export const down = (knex) => Promise.all([
-  knex.schema.dropTable('users'),
-  knex.schema.dropTable('agents'),
-  knex.schema.dropTable('agent_users'),
-  knex.schema.dropTable('clients'),
-  knex.schema.dropTable('messages'),
+  knex.raw('DROP TABLE IF EXISTS "users" CASCADE'),
+  knex.raw('DROP TABLE IF EXISTS "agents" CASCADE'),
+  knex.raw('DROP TABLE IF EXISTS "agent_users" CASCADE'),
+  knex.raw('DROP TABLE IF EXISTS "clients" CASCADE'),
+  knex.raw('DROP TABLE IF EXISTS "messages" CASCADE'),
 ]);
