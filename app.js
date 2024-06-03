@@ -3,7 +3,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 
 import routes from './configs/routers.js';
-import database from './configs/database.js';
+import { db } from './configs/database.js';
 
 const fastify = Fastify({
   logger: true,
@@ -22,7 +22,7 @@ fastify.listen(
       process.exit(1);
     }
     fastify.log.info(`server listening on ${address}`);
-    database();
+    db();
     fastify.log.info('database connected');
   },
 );

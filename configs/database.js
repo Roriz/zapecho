@@ -1,13 +1,20 @@
 import knex from 'knex';
 import envParams from './env_params.js';
 
-export default () => knex({
+const configs = {
   client: 'pg',
-  connection: {
-    connectionString: process.env.DATABASE_URL,
-    database: envParams().DATABASE_NAME,
-  },
+  connection: `${process.env.DATABASE_URL}/${envParams().DATABASE_NAME}`,
   migrations: {
-    tableName: 'knex_migrations',
+    directory: '../migrations',
   },
-});
+  disableMigrationsListValidation: true,
+  disableTransactions: true,
+  pool: {
+    min: 2,
+    max: 10,
+  },
+};
+
+export const db = () => knex(configs);
+
+export default configs;

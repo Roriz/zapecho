@@ -29,11 +29,15 @@ export const whatsappWebhook = {
   handler(req, reply, payload) {
     if (!isValidSignature(req)) { return reply.code(400).send({}); }
 
-    console.log('aeeeeeeeeeeeeeee');
+    console.log('----------------');
+    console.log(payload);
+    console.log(req.body);
+    const userParams = req.body.entry[0].changes[0].value.contacts[0];
+    const messageParams = req.body.entry[0].changes[0].value.messages[0];
 
-    // whatsappReceiveService(req.body);
+    whatsappReceiveService(userParams, messageParams);
 
-    reply.send({});
+    return reply.send({});
   },
 };
 
