@@ -6,10 +6,10 @@ const findOrInsertUser = async (params) => {
 
   if (user) { return user; }
 
-  return (await User().insert({
+  return User().insert({
     identifier: params.wa_id,
     name: params.profile.name,
-  }).returning('*'))[0];
+  });
 };
 
 const insertMessage = (params, user) => Message().insert({
