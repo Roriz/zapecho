@@ -1,4 +1,4 @@
-const getDb = require('./base-model.js');
+const getDb = require('./base_model.js');
 
 /**
  * @typedef {Object} User

@@ -1,12 +1,16 @@
 function development() {
   return {
     DATABASE_NAME: 'zapecho_development',
+    storageType: 'local',
   };
 }
 
 function production() {
   return {
     DATABASE_NAME: 'zapecho_production',
+    storageType: 's3',
+    s3Bucket: 'zapecho-production',
+    s3Region: 'us-east-1',
   };
 }
 

@@ -8,9 +8,11 @@
     "lint": "npx eslint . --ext .js --fix",
     "migrate": "npm run unlock && npx knex migrate:latest --esm --knexfile ./configs/database.js",
     "rollback": "npm run unlock && npx knex migrate:rollback --esm --knexfile ./configs/database.js",
-    "unlock": "npx knex migrate:unlock --esm --knexfile ./configs/database.js"
+    "unlock": "npx knex migrate:unlock --esm --knexfile ./configs/database.js",
+    "migrate:create": "npx knex migrate:make $1 --esm --knexfile ./configs/database.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.588.0",
     "@fastify/postgres": "^5.2.2",
     "@fastify/sensible": "^5.6.0",
     "axios": "^1.7.2",

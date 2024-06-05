@@ -1,4 +1,4 @@
-const getDb = require('./base-model.js');
+const getDb = require('./base_model.js');
 
 /**
  * @typedef {Object} Message
@@ -21,7 +21,7 @@ const getDb = require('./base-model.js');
  * @property {string} whatsapp_id - The WhatsApp id.
  * @property {Date} whatsapp_created_at - The timestamp of the WhatsApp creation.
  *
- * @returns {Knex.QueryBuilder<User, {}>}
+ * @returns {Knex.QueryBuilder<Message, {}>}
  */
 const Messages = () => getDb('messages');
 

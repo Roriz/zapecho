@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const whatsappReceiveService = require('../../services/whatsapp/receive-service.js');
+const whatsappReceiveService = require('../../services/whatsapp/receive_service.js');
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
@@ -18,7 +18,7 @@ const whatsappVerify = {
 };
 
 const isValidSignature = (req) => {
-  const headerSignature = req.headers['x-hub-expectedSignature'];
+  const headerSignature = req.headers['x-hub-signature'];
 
   const validSignature = crypto.createHmac('sha1', APP_SECRET).update(req.rawBody).digest('hex');
 
