@@ -51,14 +51,25 @@ exports.up = (knex) => Promise.all([
     table.foreign('client_id').references('clients.id').deferrable('deferred');
   }),
 
+  knex.schema.createTable('channels', (table) => {
+    table.increments();
+    table.timestamp('created_at', { precision: 6 }).notNullable();
+    table.timestamp('updated_at', { precision: 6 }).notNullable();
+    table.enu('type', ['whatsapp', 'telegram']).notNullable();
+    table.string('external_id').notNullable();
+    table.bigInteger('client_id');
+
+    table.foreign('client_id').references('clients.id').deferrable('deferred');
+  }),
+
   knex.schema.createTable('messages', (table) => {
     table.increments();
     table.timestamp('created_at', { precision: 6 }).notNullable();
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.bigInteger('user_id').notNullable();
+    table.bigInteger('channel_id').notNullable();
     table.bigInteger('client_id');
     table.bigInteger('agent_user_id');
-    table.bigInteger('channel_id');
     table.text('body');
     table.string('message_type').notNullable();
     table.string('template_name');
@@ -76,17 +87,6 @@ exports.up = (knex) => Promise.all([
     table.foreign('agent_user_id').references('agent_users.id').deferrable('deferred');
     table.foreign('channel_id').references('channels.id').deferrable('deferred');
   }),
-
-  knex.schema.createTable('channels', (table) => {
-    table.increments();
-    table.timestamp('created_at', { precision: 6 }).notNullable();
-    table.timestamp('updated_at', { precision: 6 }).notNullable();
-    table.enu('type', ['whatsapp', 'telegram']).notNullable();
-    table.string('external_id').notNullable();
-    table.bigInteger('client_id');
-
-    table.foreign('client_id').references('clients.id').deferrable('deferred');
-  }),
 ]);
 
 exports.down = (knex) => Promise.all([
@@ -95,4 +95,5 @@ exports.down = (knex) => Promise.all([
   knex.raw('DROP TABLE IF EXISTS "agent_users" CASCADE'),
   knex.raw('DROP TABLE IF EXISTS "clients" CASCADE'),
   knex.raw('DROP TABLE IF EXISTS "messages" CASCADE'),
+  knex.raw('DROP TABLE IF EXISTS "channels" CASCADE'),
 ]);
