@@ -29,10 +29,7 @@ const whatsappWebhook = {
   handler(req, reply) {
     if (!isValidSignature(req)) { return reply.code(400).send({}); }
 
-    const userParams = req.body.entry[0].changes[0].value.contacts[0];
-    const messageParams = req.body.entry[0].changes[0].value.messages[0];
-
-    whatsappReceiveService(userParams, messageParams);
+    whatsappReceiveService(req.body.entry[0].changes[0].value);
 
     return reply.send({});
   },

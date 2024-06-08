@@ -17,6 +17,10 @@ exports.up = (knex) => Promise.all([
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.string('name').notNullable();
     table.string('phone_number').notNullable();
+    table.bigInteger('first_agent_id').notNullable();
+    table.string('findable_message');
+
+    table.foreign('first_agent_id').references('agents.id').deferrable('deferred');
   }),
 
   knex.schema.createTable('agents', (table) => {
@@ -36,6 +40,7 @@ exports.up = (knex) => Promise.all([
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.bigInteger('user_id').notNullable();
     table.bigInteger('agent_id').notNullable();
+    table.bigInteger('client_id').notNullable();
     table.string('current_step');
     table.timestamp('final_step_at', { precision: 6 });
     table.jsonb('answers_data').defaultTo('{}').notNullable();
@@ -43,6 +48,7 @@ exports.up = (knex) => Promise.all([
 
     table.foreign('user_id').references('users.id').deferrable('deferred');
     table.foreign('agent_id').references('agents.id').deferrable('deferred');
+    table.foreign('client_id').references('clients.id').deferrable('deferred');
   }),
 
   knex.schema.createTable('messages', (table) => {
@@ -52,6 +58,7 @@ exports.up = (knex) => Promise.all([
     table.bigInteger('user_id').notNullable();
     table.bigInteger('client_id');
     table.bigInteger('agent_user_id');
+    table.bigInteger('channel_id');
     table.text('body');
     table.string('message_type').notNullable();
     table.string('template_name');
@@ -67,6 +74,18 @@ exports.up = (knex) => Promise.all([
     table.foreign('user_id').references('users.id').deferrable('deferred');
     table.foreign('client_id').references('clients.id').deferrable('deferred');
     table.foreign('agent_user_id').references('agent_users.id').deferrable('deferred');
+    table.foreign('channel_id').references('channels.id').deferrable('deferred');
+  }),
+
+  knex.schema.createTable('channels', (table) => {
+    table.increments();
+    table.timestamp('created_at', { precision: 6 }).notNullable();
+    table.timestamp('updated_at', { precision: 6 }).notNullable();
+    table.enu('type', ['whatsapp', 'telegram']).notNullable();
+    table.string('external_id').notNullable();
+    table.bigInteger('client_id');
+
+    table.foreign('client_id').references('clients.id').deferrable('deferred');
   }),
 ]);
 
