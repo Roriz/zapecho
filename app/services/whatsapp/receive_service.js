@@ -1,16 +1,16 @@
 const { Client } = require('knex');
 const User = require('../../models/user.js');
 const Message = require('../../models/message.js');
-const AgentUser = require('../../models/agent_user.js');
+const WorkflowUser = require('../../models/workflow_user.js');
 const Channel = require('../../models/channel.js');
 const fileStorageCreateService = require('../file_storages/create_service.js');
 const { downloadMedia } = require('../../repositories/whatsapp_repository.js');
-const runAgentService = require('../agents/run_agent_service.js');
+const runWorkflowService = require('../workflows/run_workflow_service.js');
 
-const findChannel = (phoneId) => Channel().where('external_id', phoneId).first();
+const findChannel = (phoneId) => Channel().findOne('external_id', phoneId);
 
 const findOrInsertUser = async (params) => {
-  const user = await User().where('identifier', params.wa_id).first();
+  const user = await User().findOne('identifier', params.wa_id);
 
   if (user) { return user; }
 
@@ -43,49 +43,46 @@ const attachMedia = async (messageParams, message) => {
   }, 'message', message.id);
 };
 
-const clientByUser = async (user) => {
-  const agentUser = await AgentUser().where({ user_id: user.id, final_step_at: null }).first();
+const clientByWorkflowUser = async (user) => {
+  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, final_step_at: null });
 
-  return agentUser?.client_id;
+  return workflowUser?.client_id;
 };
 
-const clientByMessage = async (message) => {
-  const client = await Client().where('findable_message', message.body).first();
+const clientByFindableMessage = async (message) => {
+  const client = await Client().findOne('findable_message', message.body);
 
   return client?.id;
 };
 
 const discoverTheClient = async (message, user, channel) => {
-  const clientId = channel.client_id || await clientByUser(user) || await clientByMessage(message);
+  const clientId = channel.client_id || await clientByWorkflowUser(user) || await clientByFindableMessage(message);
 
   if (!clientId) { return null; }
 
   return clientId;
 };
 
-const discoverOrActivateAgentUser = async (user, clientId) => {
-  const agentUser = await AgentUser().where({ user_id: user.id, final_step_at: null }).first();
+const discoverOrActivateWorkflowUser = async (user, clientId) => {
+  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, final_step_at: null });
 
-  if (agentUser) { return agentUser; }
+  if (workflowUser) { return workflowUser; }
 
   if (clientId) {
-    const client = await Client().where('id', clientId).first();
+    const client = await Client().findOne('id', clientId);
 
-    return AgentUser().insert({
+    return WorkflowUser().insert({
       user_id: user.id,
-      agent_id: client.first_agent_id,
+      workflow_id: client.first_workflow_id,
       client_id: clientId,
     });
   }
 
-  // TODO: active router-agent
-  // const agent = Agent().where('id', ROUTER_AGENT_ID).first();
-  // AgentUser().insert({
-  //   user_id: user.id,
-  //   agent_id: agent.id,
-  //   client_id: clientId,
-  // });
-  return null;
+  return WorkflowUser().insert({
+    user_id: user.id,
+    workflow_id: await Workflow.query().findOne({ slug: 'router-client' }).select('id'),
+    client_id: clientId,
+  });
 };
 
 module.exports = async function whatsappReceiveService(params) {
@@ -98,15 +95,15 @@ module.exports = async function whatsappReceiveService(params) {
   await attachMedia(params.messages[0], message);
 
   const clientId = await discoverTheClient(message, user, channel);
-  const agentUser = await discoverOrActivateAgentUser(message, user, clientId);
+  const workflowUser = await discoverOrActivateWorkflowUser(message, user, clientId);
 
   await Message().where('id', message.id).update({
     client_id: clientId,
-    agent_user_id: agentUser?.id,
+    workflow_user_id: workflowUser?.id,
   });
 
-  if (agentUser) {
-    runAgentService(agentUser);
+  if (workflowUser) {
+    runWorkflowService(workflowUser);
   }
 
   return message;

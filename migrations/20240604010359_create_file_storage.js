@@ -17,6 +17,7 @@ exports.up = (knex) => knex.schema.createTable('file_storages', (table) => {
   table.string('fileable_id');
 
   table.index(['fileable_type', 'fileable_id']);
+  table.unique(['path']);
 });
 
 /**

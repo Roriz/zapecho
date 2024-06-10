@@ -8,7 +8,7 @@ const getDb = require('./base_model.js');
  * @property {Date} updated_at - The timestamp when the record was last updated.
  * @property {number} user_id - The user id.
  * @property {number} client_id - The client id.
- * @property {number} agent_user_id - The agent user id.
+ * @property {number} workflow_user_id - The workflow user id.
  * @property {string} body - The message body.
  * @property {string} message_type - The message type. E.g. text, image, etc.
  * @property {string} template_name - The template name.
