@@ -8,8 +8,8 @@ const getDb = require('./base_model.js');
  * @property {Date} updated_at - The timestamp when the record was last updated.
  * @property {number} user_id - The id of the user.
  * @property {number} workflow_id - The id of the workflow.
- * @property {string} current_step - The current step of the user.
- * @property {Date} final_step_at - The timestamp of the final step.
+ * @property {string} status - The status of the workflow user.
+ * @property {Date} finished_at - The timestamp when the user finished.
  * @property {Object} answers_data - The data of the answers.
  * @property {string} openai_thread_id - The id of the openai thread.
  *

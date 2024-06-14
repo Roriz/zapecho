@@ -45,7 +45,7 @@ exports.up = (knex) => Promise.all([
     table.bigInteger('workflow_id').notNullable();
     table.bigInteger('client_id');
     table.string('status');
-    table.timestamp('final_step_at', { precision: 6 });
+    table.timestamp('finished_at', { precision: 6 });
     table.jsonb('answers_data').defaultTo('{}').notNullable();
     table.string('openai_thread_id');
 
@@ -75,6 +75,7 @@ exports.up = (knex) => Promise.all([
     table.bigInteger('channel_id').notNullable();
     table.bigInteger('client_id');
     table.bigInteger('workflow_user_id');
+    table.enu('sender_type', ['user', 'client', 'agent']).notNullable();
     table.text('body');
     table.string('message_type').notNullable();
     table.string('template_name');
@@ -85,6 +86,7 @@ exports.up = (knex) => Promise.all([
     table.timestamp('user_read_at', { precision: 6 });
     table.timestamp('client_read_at', { precision: 6 });
     table.string('whatsapp_id');
+    table.string('openai_id');
     table.timestamp('whatsapp_created_at', { precision: 6 });
 
     table.foreign('user_id').references('users.id').deferrable('deferred');

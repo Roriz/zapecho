@@ -9,5 +9,8 @@ module.exports = async function runWorkflow(workflowUser) {
   const runner = WORKFLOW_TO_RUNNER[workflow.slug];
   if (!runner) { throw new Error(`Workflow runner not found for workflow ${workflow.slug}`); }
 
-  return runner()(workflowUser);
+  const runnerWorkflowUser = runner()(workflowUser);
+  if (runnerWorkflowUser.id !== workflowUser.id) {
+    runWorkflow(runnerWorkflowUser)
+  }
 };

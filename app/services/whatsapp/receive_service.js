@@ -20,18 +20,8 @@ const findOrInsertUser = async (params) => {
   });
 };
 
-const insertMessage = (params, user, channel) => Message().insert({
-  channel_id: channel.id,
-  user_id: user.id,
-  body: params.text?.body,
-  message_type: params.type,
-  whatsapp_id: params.id,
-  whatsapp_created_at: new Date(params.timestamp * 1000),
-  user_read_at: params.read_at,
-});
-
 const HAS_ATTACHMENT = ['image', 'sticker', 'video', 'audio', 'document'];
-const attachMedia = async (messageParams, message) => {
+const attachMedia = async (messageParams, messageId) => {
   if (!HAS_ATTACHMENT.includes(messageParams.type)) { return; }
 
   const mediaId = messageParams[messageParams.type].id;
@@ -40,7 +30,23 @@ const attachMedia = async (messageParams, message) => {
   await fileStorageCreateService({
     category: messageParams.type,
     ...fileStorageParams,
-  }, 'message', message.id);
+  }, 'message', messageId);
+};
+
+const insertMessage = async (params, user, channel) => { 
+  const message = await Message().insert({
+    sender_type: 'user',
+    channel_id: channel.id,
+    user_id: user.id,
+    body: params.text?.body,
+    message_type: params.type,
+    whatsapp_id: params.id,
+    whatsapp_created_at: new Date(params.timestamp * 1000),
+    user_read_at: params.read_at,
+  });
+  attachMedia(params, message.id);
+
+  return message;
 };
 
 const clientByWorkflowUser = async (user) => {
@@ -92,7 +98,6 @@ module.exports = async function whatsappReceiveService(params) {
   const user = await findOrInsertUser(params.contacts[0]);
 
   const message = await insertMessage(params.messages[0], user, channel);
-  await attachMedia(params.messages[0], message);
 
   const clientId = await discoverTheClient(message, user, channel);
   const workflowUser = await discoverOrActivateWorkflowUser(message, user, clientId);
