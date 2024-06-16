@@ -1,4 +1,5 @@
 const axios = require('axios');
+const User = require('../../models/user.js');
 
 const WHATSAPP_PHONE_NUMBER_ID = '316864934845721';
 const PERMANENT_TOKEN = 'EAAErNEdwc78BOzSRHJ2Ot5B9SRhG7BZCGtycypX8aMJ8eA8jViR1i0TQOxWV6oZAIgELYwFmBJrwZCqXZAV94ZAw7ej7su2v1Kl91fZCKgbsqkJG1u7ZCovutf8E1cFqGESP6thZCy7zNyEfxyxEkU1aydvIoWRuJeBp32ZBti3PvKq6c2NeddjY5yQOmaa0Oxl6VG36NV7mYoYndF2rxgQRS';
@@ -8,18 +9,14 @@ const DEFAULT_HEADERS = {
   Authorization: `Bearer ${PERMANENT_TOKEN}`,
 };
 
-// await sendWhatsappMessage({
-//   user: { phoneNumber: '+5511953664050' },
-//   messageType: 'template',
-//   templateName: 'hello_world',
-//   templateLocale: 'en_US',
-// })
 const sendWhatsappMessage = async (message) => {
+  const user = await User().findOne('id', message.user_id);
+
   const response = await axios.post(
     `${WHATSAPP_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
     {
       messaging_product: 'whatsapp',
-      to: message.user.phoneNumber,
+      to: user.identifier,
       type: message.messageType,
       ...(message.messageType === 'text' && { text: { body: message.text } }),
       ...(message.messageType === 'template' && {
