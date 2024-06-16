@@ -1,5 +1,5 @@
 const Message = require('../../models/message.js');
-const openaiRepository = require('../../repositories/openai_repository.js');
+const openaiRepository, { functionCall } = require('../../repositories/openai_repository.js');
 
 const MESSAGE_TYPE_TO_AGENT_ROLE = {
   'user': 'user',
@@ -14,6 +14,7 @@ const STATUS_TO_AGENT = {
   'signup': () => require('../functions/ecommerce/signup_agent.js'),
   'payment': () => require('../functions/ecommerce/payment_agent.js'),
   'order_confirmation': () => require('../functions/ecommerce/order_confirmation_agent.js'),
+  'cancelled': () => require('../functions/ecommerce/cancelled_agent.js'),
 }
 const FIRST_STATUS = 'introduction';
 
@@ -40,11 +41,13 @@ async function addMessagesToThread(workflowUser) {
     );
 
     Message().where('id', message.id).update({ openai_id: threadMessage.id });
+
+    return message;
   }));
 }
 
-async function setFirstStatus(workflowUser) {
-  WorkflowUser().where('id', workflowUser.id).update({ status: FIRST_STATUS });
+async function setStatus(workflowUser, status) {
+  WorkflowUser().where('id', workflowUser.id).update({ status });
 
   return {
     ...workflowUser,
@@ -52,7 +55,21 @@ async function setFirstStatus(workflowUser) {
   }
 }
 
-module.exports = async function ecommerceDemoRunner(workflowUser) {
+const DATA_TO_EXTRACT = {
+  user_do_not_want_to_continue: {
+    type: 'boolean',
+    description: `User says that does not want to continue the conversation.`
+  },
+  the_subject_is_not_relevant: {
+    type: 'boolean',
+    description: `
+    User says that the subject is not relevant or false for any other case.
+    Subject is far from the talk about the company, products or buying process.
+    `
+  }
+}
+
+module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   if (!workflowUser.openai_thread_id) {
     workflowUser = await createThread()
   }
@@ -60,7 +77,13 @@ module.exports = async function ecommerceDemoRunner(workflowUser) {
   addMessagesToThread(workflowUser)
   
   if (!workflowUser.status) {
-    workflowUser = await setFirstStatus(workflowUser)
+    workflowUser = await setStatus(workflowUser, FIRST_STATUS);
+  } else {
+    const extractedData = dataExtractor(messages, DATA_TO_EXTRACT)
+    if (extractedData.the_subject_is_not_relevant) { return workflowUser; }
+    if (extractedData.user_do_not_want_to_continue) {
+      workflowUser = await setStatus(workflowUser, 'cancelled');
+    }
   }
 
   const agent = STATUS_TO_AGENT[workflowUser.status];
