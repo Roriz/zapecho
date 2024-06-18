@@ -5,7 +5,7 @@ const WorkflowUser = require('../../models/workflow_user.js');
 const Channel = require('../../models/channel.js');
 const fileStorageCreateService = require('../file_storages/create_service.js');
 const { downloadMedia } = require('../../repositories/whatsapp_repository.js');
-const runWorkflowService = require('../workflows/run_workflow_service.js');
+const workflowRunService = require('../workflows/run_service.js');
 
 const findChannel = (phoneId) => Channel().findOne('external_id', phoneId);
 
@@ -50,7 +50,7 @@ const insertMessage = async (params, user, channel) => {
 };
 
 const clientByWorkflowUser = async (user) => {
-  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, final_step_at: null });
+  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, finished_at: null });
 
   return workflowUser?.client_id;
 };
@@ -62,15 +62,11 @@ const clientByFindableMessage = async (message) => {
 };
 
 const discoverTheClient = async (message, user, channel) => {
-  const clientId = channel.client_id || await clientByWorkflowUser(user) || await clientByFindableMessage(message);
-
-  if (!clientId) { return null; }
-
-  return clientId;
+  return channel.client_id || await clientByWorkflowUser(user) || await clientByFindableMessage(message);
 };
 
-const discoverOrActivateWorkflowUser = async (user, clientId) => {
-  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, final_step_at: null });
+const findOrActivateWorkflowUser = async (user, clientId) => {
+  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, finished_at: null });
 
   if (workflowUser) { return workflowUser; }
 
@@ -100,7 +96,7 @@ module.exports = async function whatsappReceiveService(params) {
   const message = await insertMessage(params.messages[0], user, channel);
 
   const clientId = await discoverTheClient(message, user, channel);
-  const workflowUser = await discoverOrActivateWorkflowUser(message, user, clientId);
+  const workflowUser = await findOrActivateWorkflowUser(message, user, clientId);
 
   await Message().where('id', message.id).update({
     client_id: clientId,
@@ -108,7 +104,7 @@ module.exports = async function whatsappReceiveService(params) {
   });
 
   if (workflowUser) {
-    runWorkflowService(workflowUser);
+    workflowRunService(workflowUser);
   }
 
   return message;

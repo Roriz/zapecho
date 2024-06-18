@@ -88,6 +88,7 @@ exports.up = (knex) => Promise.all([
     table.string('whatsapp_id');
     table.string('openai_id');
     table.timestamp('whatsapp_created_at', { precision: 6 });
+    table.timestamp('ignored_at', { precision: 6 });
 
     table.foreign('user_id').references('users.id').deferrable('deferred');
     table.foreign('client_id').references('clients.id').deferrable('deferred');

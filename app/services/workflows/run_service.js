@@ -1,6 +1,6 @@
 const WORKFLOW_TO_RUNNER = {
-  'router-client': () => require('./workflows/router_client_workflow.js'),
-  'ecommerce-demo': () => require('./workflows/ecommerce_demo_workflow.js'),
+  'router-client': () => require('../../workflows/router_client_workflow.js'),
+  'ecommerce-demo': () => require('../../workflows/ecommerce_demo_workflow.js'),
 }
 
 module.exports = async function runWorkflow(workflowUser) {

@@ -6,7 +6,7 @@ module.exports = async function routerClientRunner(workflowUser) {
   const client = await Client().first()
   
   WorkflowUser().where('id', workflowUser.id).update({
-    final_step_at: new Date(),
+    finished_at: new Date(),
     current_step: 'finished'
   });
 

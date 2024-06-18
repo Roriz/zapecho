@@ -16,6 +16,16 @@ function getDb(tableName) {
     return result[0];
   };
 
+  query.updateOne = async function updateOne(modelInstance, paramsToUpdate) {
+    await this.where('id', modelInstance.id).update(paramsToUpdate);
+    
+    return {
+      ...modelInstance,
+      ...paramsToUpdate,
+      updated_at: new Date(),
+    };
+  };
+
   return query;
 }
 

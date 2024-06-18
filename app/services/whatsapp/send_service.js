@@ -3,6 +3,8 @@ const WorkflowUser = require('../../models/workflow_user.js');
 const { sendWhatsappMessage } = require('../../repositories/whatsapp_repository.js');
 
 module.exports = async function whatsappSendService(agentRun) {
+  if(!agentRun?.message_body) { return }
+
   const workflowUser = await WorkflowUser().findOne('id', agentRun.workflow_user_id);
   
   const message = await Message().insert({

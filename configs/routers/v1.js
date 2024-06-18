@@ -30,7 +30,7 @@ function almostDefaultJsonParser(app) {
   };
 }
 
-function v1Routers(app, _, done) {
+module.exports = function v1Routers(app, _, done) {
   // eslint-disable-next-line no-param-reassign
   app.addHook('onRoute', (routeOptions) => { routeOptions.preParsing = [preparsingRawBody]; });
   app.addContentTypeParser(['application/json'], { parseAs: 'buffer' }, almostDefaultJsonParser(app));
@@ -39,6 +39,4 @@ function v1Routers(app, _, done) {
   app.route({ method: 'POST', url: '/whatsapp', ...whatsappWebhook });
 
   done();
-}
-
-module.exports = v1Routers;
+};

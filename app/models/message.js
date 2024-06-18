@@ -25,6 +25,13 @@ const getDb = require('./base_model.js');
  *
  * @returns {Knex.QueryBuilder<Message, {}>}
  */
-const Messages = () => getDb('messages');
+const Messages = () => {
+  const query = getDb('messages');
+  query.lastRelevantMessages = async (workflowUserId) => {
+    const thirdToTast = getDb('messages').where('workflow_user_id', workflowUserId).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(3);
+    return query.where('workflow_user_id', workflowUserId).whereRaw('id > ?', [thirdToTast[0].id]).orderBy('created_at', 'asc');
+  };
+  return query
+}
 
 module.exports = Messages;
