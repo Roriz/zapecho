@@ -16,6 +16,20 @@ const getDb = require('./base_model.js');
  *
  * @returns {Knex.QueryBuilder<AgentRun, {}>}
  */
-const AgentRuns = () => getDb('agent_runs');
+const AgentRuns = () => {
+  const query = getDb('agent_runs')
+
+  const originalInsert = query.insert;
+  query.insert = async function zeInsert(...args) {
+    console.info(JSON.stringify({
+      code: 'models/agent_run/insert',
+      message: 'Inserting agent run',
+      payload: args
+    }));
+    originalInsert.bind(this, ...args)();
+  };
+
+  return query;
+};
 
 module.exports = AgentRuns;

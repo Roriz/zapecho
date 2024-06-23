@@ -1,6 +1,6 @@
 const { threadRun, dataExtractor } = require('~/repositories/openai_repository.js');
-const Client = require('~/models/client.js');
-const AgentRun = require('~/models/agent_run.js');
+const Clients = require('~/models/client.js');
+const AgentRuns = require('~/models/agent_run.js');
 
 const PROMPT = `
 act as sales representative and welcome the user and introduce the company. Be responsive and helpful.
@@ -25,14 +25,14 @@ module.exports = {
     const lastRelevantMessages = await Message().lastRelevantMessages(workflowUser.id)
     const data = dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT)
     if (data.user_wants_to_see_products || data.user_request_a_search_or_product_detail) {
-      return AgentRun().insert({
+      return AgentRuns().insert({
         agent_slug: 'introduction',
         workflow_user_status: workflowUser.status,
         is_complete: true
       });
     }
 
-    const client = await Client().findOne('id', workflowUser.client_id);
+    const client = await Clients().findOne('id', workflowUser.client_id);
 
     const agentRun = await threadRun(
       workflowUser.openai_thread_id,
@@ -43,7 +43,7 @@ module.exports = {
     // TODO: send footer or attach itens on the message
     // const nextAction = agentRun.message_body.match(/#(\w+)/)[1];
 
-    return AgentRun().insert({
+    return AgentRuns().insert({
       agent_slug: 'introduction',
       workflow_user_status: workflowUser.status,
       is_complete: false,
