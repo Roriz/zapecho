@@ -1,6 +1,6 @@
-const { threadRun, dataExtractor } = require('../../repositories/openai_repository.js');
-const Client = require('../../models/client.js');
-const AgentRun = require('../../models/agent_run.js');
+const { threadRun, dataExtractor } = require('~/repositories/openai_repository.js');
+const Client = require('~/models/client.js');
+const AgentRun = require('~/models/agent_run.js');
 
 const PROMPT = `
 act as sales representative and welcome the user and introduce the company. Be responsive and helpful.

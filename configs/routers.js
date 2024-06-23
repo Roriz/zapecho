@@ -1,4 +1,4 @@
-const healthcheck = require('../app/controllers/healthcheck-controller.js');
+const healthcheck = require('~/controllers/healthcheck-controller.js');
 const v1Routers = require('./routers/v1.js');
 
 module.exports = function routers(app, _, done) {

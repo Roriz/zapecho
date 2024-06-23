@@ -60,3 +60,5 @@ profile*
 tmp
 
 attachs
+
+.env.*

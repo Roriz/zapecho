@@ -1,21 +1,21 @@
 const OpenAI = require('openai');
+const envParams = require('#/configs/env_params.js');
 
 const DEFAULT_MODEL = 'gpt-3.5-turbo'
+let openai;
 
-module.exports = function openaiRepository() {
-  return new OpenAI();
-}
+function openaiSDK() {
+  if (openai) return openai;
 
-module.openaiSDK = openaiRepository
-
-module.threadRun = async function threadRun(thread_id, assistant_id, PROMPT) {
-  const stream = await openaiRepository().beta.threads.runs.create(
-    thread_id, {
-    assistant_id: assistant_id,
-    additional_instructions: PROMPT,
-    stream: true,
+  openai = new OpenAI({
+    apiKey: envParams().openai_api_key,
+    project: envParams().openai_project_id,
   });
 
+  return openai
+}
+
+async function threadRun(thread_id, assistant_id, PROMPT) {
   const agentRun = {
     message_body: undefined,
     openai_run_id: undefined,
@@ -23,17 +23,28 @@ module.threadRun = async function threadRun(thread_id, assistant_id, PROMPT) {
     total_tokens: undefined,
   }
 
-  for await (const event of stream) {
-    // if thread.message.completed get the message and id
-    // if thread.run.step.completed get the tokens used
-    console.log(event);
-  }
+  const run = openaiSDK().beta.threads.runs.stream(
+    thread_id, {
+    assistant_id: assistant_id,
+    additional_instructions: PROMPT,
+    stream: true,
+  }).on('event', ({event, data}) => {
+    if (event === 'thread.run.step.completed') {
+      agentRun.total_tokens = data.usage.total_tokens
+    } else if (event === 'thread.message.completed') {
+      agentRun.openai_run_id = data.run_id
+      agentRun.openai_message_id = data.id
+      agentRun.message_body = data.content[0].text.value
+    }
+  })
+
+  await run.finalRun();
 
   return agentRun;
 }
 
-module.functionCall = async function functionCall(messages, functionAndSchema, model = DEFAULT_MODEL) {
-  const response = await openaiRepository().openai.chat.completions.create({
+async function functionCall(messages, functionAndSchema, model = DEFAULT_MODEL) {
+  const response = await openaiSDK().openai.chat.completions.create({
     messages,
     functions: [functionAndSchema],
     function_call: { name: functionAndSchema.name },
@@ -42,4 +53,12 @@ module.functionCall = async function functionCall(messages, functionAndSchema, m
   });
 
   return JSON.parse(response.choices[0].message.function_call.arguments);
+}
+
+
+module.exports = {
+  default: openaiSDK,
+  openaiSDK,
+  threadRun,
+  functionCall
 }

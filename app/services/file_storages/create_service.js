@@ -1,5 +1,5 @@
-const FileStorages = require('../../models/file_storage.js');
-const fileStorageRepository = require('../../repositories/file_storage_repository.js');
+const FileStorages = require('~/models/file_storage.js');
+const fileStorageRepository = require('~/repositories/file_storage_repository.js');
 
 async function fileStorageCreateService(fileStorageParams, fileableType, fileableId) {
   const fileStorage = await FileStorages().insert({

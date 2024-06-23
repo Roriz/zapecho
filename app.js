@@ -1,4 +1,5 @@
-require('dotenv').config();
+require('dotenv').config({ path: `.env.${process.env.NODE_ENV}` });
+require('./lib/relative_absolute.js');
 
 const Fastify = require('fastify');
 

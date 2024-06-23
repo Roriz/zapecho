@@ -1,6 +1,6 @@
-const Message = require('../../models/message.js');
-const WorkflowUser = require('../../models/workflow_user.js');
-const { sendWhatsappMessage } = require('../../repositories/whatsapp_repository.js');
+const Message = require('~/models/message.js');
+const WorkflowUser = require('~/models/workflow_user.js');
+const { sendWhatsappMessage } = require('~/repositories/whatsapp_repository.js');
 
 module.exports = async function whatsappSendService(agentRun) {
   if(!agentRun?.message_body) { return }

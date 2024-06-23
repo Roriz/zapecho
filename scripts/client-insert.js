@@ -1,12 +1,12 @@
-const Client = require('../app/models/client.js');
-const Workflow = require('../app/models/workflow.js');
+const Clients = require('../app/models/client.js');
+const Workflows = require('../app/models/workflow.js');
 
-console.info('Inserting clients...');
-Client.insertMany([
-  {
+(async () => {
+  console.info('Inserting clients...');
+  Clients().insert({
     name: 'Moda da MIMI',
     findable_message: 'Eu quero me mimizar!',
-    first_workflow_id: await Workflow.query().findOne({ slug: 'ecommerce-demo' }).select('id'),
+    first_workflow_id: await Workflows().select('id').findOne({ slug: 'ecommerce-demo' }),
     assistant_instructions: `
 You are an AI assistant for Moda da MIMI, a company that sells unique, self-created T-shirts with cat themes and cat jokes. Your role is to facilitate fast, fluid, and natural conversations between the company's assistent and users. Your tone should be playful, fun, and colloquial, appealing to an audience of pet parents.
 
@@ -57,6 +57,9 @@ T-shirts with cat themes and jokes:
 Aim to provide a delightful and efficient customer experience. Your goal is to make customers feel welcome, entertained, and satisfied with their interaction at Moda da MIMI.
     `,
     openai_assistant_id: 'asdasd',
-  },
-]);
-console.info('Clients inserted.');
+  });
+  console.info('Clients inserted.');
+  process.exit(0);
+})()
+
+

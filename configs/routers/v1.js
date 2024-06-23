@@ -1,7 +1,7 @@
 const getRawBody = require('raw-body');
 const secureJson = require('secure-json-parse');
 
-const { whatsappVerify, whatsappWebhook } = require('../../app/controllers/v1/whatsapp-controller.js');
+const { whatsappVerify, whatsappWebhook } = require('~/controllers/v1/whatsapp-controller.js');
 
 function preparsingRawBody(request, reply, payload, done) {
   const applyLimit = request.routeOptions.bodyLimit;
@@ -36,7 +36,9 @@ module.exports = function v1Routers(app, _, done) {
   app.addContentTypeParser(['application/json'], { parseAs: 'buffer' }, almostDefaultJsonParser(app));
 
   app.route({ method: 'GET', url: '/whatsapp', ...whatsappVerify });
+  app.route({ method: 'GET', url: '/whatsapp/', ...whatsappVerify });
   app.route({ method: 'POST', url: '/whatsapp', ...whatsappWebhook });
+  app.route({ method: 'POST', url: '/whatsapp/', ...whatsappWebhook });
 
   done();
 };

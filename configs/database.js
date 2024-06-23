@@ -3,7 +3,7 @@ const envParams = require('./env_params.js');
 
 const configs = {
   client: 'pg',
-  connection: `${process.env.DATABASE_URL}/${envParams().DATABASE_NAME}`,
+  connection: `${envParams().database_url}/${envParams().database_name}`,
   migrations: {
     directory: '../migrations',
   },

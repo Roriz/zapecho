@@ -1,8 +1,8 @@
 const axios = require('axios');
-const User = require('../../models/user.js');
+const Users = require('~/models/user.js');
 
 const WHATSAPP_PHONE_NUMBER_ID = '316864934845721';
-const PERMANENT_TOKEN = 'EAAErNEdwc78BOzSRHJ2Ot5B9SRhG7BZCGtycypX8aMJ8eA8jViR1i0TQOxWV6oZAIgELYwFmBJrwZCqXZAV94ZAw7ej7su2v1Kl91fZCKgbsqkJG1u7ZCovutf8E1cFqGESP6thZCy7zNyEfxyxEkU1aydvIoWRuJeBp32ZBti3PvKq6c2NeddjY5yQOmaa0Oxl6VG36NV7mYoYndF2rxgQRS';
+const PERMANENT_TOKEN = 'EAAErNEdwc78BO7TedcFZCMZAI1MrL3FydP2tWrg07YsiBcNknDCGaYEu8InUrkw3IhEiOgsHTYGh30oMOZCgr3vbqFVvRZBMTmup6vZAGOZAEnn3OqcBIiVaNRpFdGOIam1MWMagZCGkW4MZB245wTFZBxNn2lMVOGwaFFiaqaJZCzG6Lp3UbOpMGypMEE9ZA2OVbiemWHVYIeAHkO8oVwszKMZD';
 const WHATSAPP_URL = 'https://graph.facebook.com/v20.0';
 const DEFAULT_HEADERS = {
   'Content-Type': 'application/json',
@@ -10,7 +10,7 @@ const DEFAULT_HEADERS = {
 };
 
 const sendWhatsappMessage = async (message) => {
-  const user = await User().findOne('id', message.user_id);
+  const user = await Users().findOne('id', message.user_id);
 
   const response = await axios.post(
     `${WHATSAPP_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,

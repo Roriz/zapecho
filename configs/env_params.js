@@ -1,26 +1,40 @@
+require('dotenv').config({ path: `../.env.${process.env.NODE_ENV}` });
+
+function shared() {
+  return {
+    database_url: process.env.DATABASE_URL,
+    
+    whatsapp_verify_token: process.env.WHATSAPP_VERIFY_TOKEN,
+    whatsapp_app_secret: process.env.WHATSAPP_APP_SECRET,
+
+    openai_api_key: process.env.OPENAI_API_KEY,
+    openai_project_id: process.env.OPENAI_PROJECT_ID,
+  }
+}
+
 function development() {
   return {
-    DATABASE_NAME: 'zapecho_development',
+    ...shared(),
+    database_name: 'zapecho_development',
     storageType: 'local',
   };
 }
 
 function production() {
   return {
-    DATABASE_NAME: 'zapecho_production',
+    ...shared(),
+    database_name: 'zapecho_production',
     storageType: 's3',
     s3Bucket: 'zapecho-production',
     s3Region: 'us-east-1',
   };
 }
 
-function envParams() {
-  const params = {
-    development,
-    production,
-  };
+const ENVORINMENTS = {
+  development,
+  production,
+};
 
-  return (params[process.env.NODE_ENV] || development)();
-}
-
-module.exports = envParams;
+module.exports = function envParams() {
+  return (ENVORINMENTS[process.env.NODE_ENV] || development)();
+};

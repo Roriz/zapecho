@@ -1,9 +1,9 @@
-const Message = require('../../models/message.js');
-const WorkflowUser = require('../../models/workflow_user.js');
-const { openaiSDK } = require('../../repositories/openai_repository.js');
-const { dataExtractor } = require('../../repositories/openai/data_extractor_repository.js');
-const { nextAction } = require('../../repositories/openai/next_action_repository.js');
-const sendService = require('../whatsapp/send_service.js');
+const Message = require('~/models/message.js');
+const WorkflowUser = require('~/models/workflow_user.js');
+const { openaiSDK } = require('~/repositories/openai_repository.js');
+const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
+const { nextAction } = require('~/repositories/openai/next_action_repository.js');
+const sendService = require('~/workflows/whatsapp/send_service.js');
 
 const MESSAGE_TYPE_TO_AGENT_ROLE = {
   'user': 'user',

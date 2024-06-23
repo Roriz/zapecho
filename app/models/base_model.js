@@ -26,6 +26,10 @@ function getDb(tableName) {
     };
   };
 
+  query.findOne = async function findOne(...args) {
+    return this.where(...args).first();
+  }
+
   return query;
 }
 

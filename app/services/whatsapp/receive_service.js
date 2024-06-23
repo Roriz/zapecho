@@ -1,20 +1,21 @@
-const { Client } = require('knex');
-const User = require('../../models/user.js');
-const Message = require('../../models/message.js');
-const WorkflowUser = require('../../models/workflow_user.js');
-const Channel = require('../../models/channel.js');
+const Clients = require('~/models/client.js');
+const Users = require('~/models/user.js');
+const Messages = require('~/models/message.js');
+const WorkflowUsers = require('~/models/workflow_user.js');
+const Channels = require('~/models/channel.js');
 const fileStorageCreateService = require('../file_storages/create_service.js');
-const { downloadMedia } = require('../../repositories/whatsapp_repository.js');
-const workflowRunService = require('../workflows/run_service.js');
+const { downloadMedia } = require('~/repositories/whatsapp_repository.js');
+const workflowRunService = require('~/services/workflows/run_service.js');
+const Workflows = require('~/models/workflow.js');
 
-const findChannel = (phoneId) => Channel().findOne('external_id', phoneId);
+const findChannel = (phoneId) => Channels().findOne('external_id', phoneId);
 
 const findOrInsertUser = async (params) => {
-  const user = await User().findOne('identifier', params.wa_id);
+  const user = await Users().findOne('identifier', params.wa_id);
 
   if (user) { return user; }
 
-  return User().insert({
+  return Users().insert({
     identifier: params.wa_id,
     name: params.profile.name,
   });
@@ -34,7 +35,7 @@ const attachMedia = async (messageParams, messageId) => {
 };
 
 const insertMessage = async (params, user, channel) => { 
-  const message = await Message().insert({
+  const message = await Messages().insert({
     sender_type: 'user',
     channel_id: channel.id,
     user_id: user.id,
@@ -50,13 +51,13 @@ const insertMessage = async (params, user, channel) => {
 };
 
 const clientByWorkflowUser = async (user) => {
-  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, finished_at: null });
+  const workflowUser = await WorkflowUsers().findOne({ user_id: user.id, finished_at: null });
 
   return workflowUser?.client_id;
 };
 
 const clientByFindableMessage = async (message) => {
-  const client = await Client().findOne('findable_message', message.body);
+  const client = await Clients().findOne('findable_message', message.body);
 
   return client?.id;
 };
@@ -66,23 +67,25 @@ const discoverTheClient = async (message, user, channel) => {
 };
 
 const findOrActivateWorkflowUser = async (user, clientId) => {
-  const workflowUser = await WorkflowUser().findOne({ user_id: user.id, finished_at: null });
+  const workflowUser = await WorkflowUsers().findOne({ user_id: user.id, finished_at: null });
 
   if (workflowUser) { return workflowUser; }
 
   if (clientId) {
-    const client = await Client().findOne('id', clientId);
+    const client = await Clients().findOne('id', clientId);
 
-    return WorkflowUser().insert({
+    return WorkflowUsers().insert({
       user_id: user.id,
       workflow_id: client.first_workflow_id,
       client_id: clientId,
     });
   }
 
-  return WorkflowUser().insert({
+  const routerWorkflow = await Workflows().findOne({ slug: 'router-client' })
+
+  return WorkflowUsers().insert({
     user_id: user.id,
-    workflow_id: await Workflow.query().findOne({ slug: 'router-client' }).select('id'),
+    workflow_id: routerWorkflow.id,
     client_id: clientId,
   });
 };
@@ -96,9 +99,9 @@ module.exports = async function whatsappReceiveService(params) {
   const message = await insertMessage(params.messages[0], user, channel);
 
   const clientId = await discoverTheClient(message, user, channel);
-  const workflowUser = await findOrActivateWorkflowUser(message, user, clientId);
+  const workflowUser = await findOrActivateWorkflowUser(user, clientId);
 
-  await Message().where('id', message.id).update({
+  await Messages().where('id', message.id).update({
     client_id: clientId,
     workflow_user_id: workflowUser?.id,
   });

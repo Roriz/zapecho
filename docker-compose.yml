@@ -10,7 +10,7 @@ services:
     depends_on:
       - postgres
     environment:
-      - DATABASE_URL=postgresql://dev:localhost@postgres:5432
+      - NODE_ENV=development
 
   postgres:
     image: postgres:latest
