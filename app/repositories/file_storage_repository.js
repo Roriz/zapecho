@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { S3Client } = require('@aws-sdk/client-s3');
-const envParams = require('../../configs/env_params');
+const envParams = require('#/configs/env_params');
 
 const localPersist = async (binaryFile, filePath) => {
   const dir = path.dirname(filePath);

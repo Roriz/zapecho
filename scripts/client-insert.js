@@ -3,10 +3,12 @@ const Workflows = require('../app/models/workflow.js');
 
 (async () => {
   console.info('Inserting clients...');
-  Clients().insert({
+  const ecommerceDemo = await Workflows().select('id').findOne({ slug: 'ecommerce-demo' });
+
+  await Clients().insert({
     name: 'Moda da MIMI',
     findable_message: 'Eu quero me mimizar!',
-    first_workflow_id: await Workflows().select('id').findOne({ slug: 'ecommerce-demo' }),
+    first_workflow_id: ecommerceDemo.id,
     assistant_instructions: `
 You are an AI assistant for Moda da MIMI, a company that sells unique, self-created T-shirts with cat themes and cat jokes. Your role is to facilitate fast, fluid, and natural conversations between the company's assistent and users. Your tone should be playful, fun, and colloquial, appealing to an audience of pet parents.
 

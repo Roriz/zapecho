@@ -44,7 +44,7 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
 }
 
 async function functionCall(messages, functionAndSchema, model = DEFAULT_MODEL) {
-  const response = await openaiSDK().openai.chat.completions.create({
+  const response = await openaiSDK().chat.completions.create({
     messages,
     functions: [functionAndSchema],
     function_call: { name: functionAndSchema.name },

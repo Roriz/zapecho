@@ -11,8 +11,8 @@ module.exports = async function runWorkflow(workflowUser) {
   const runner = WORKFLOW_TO_RUNNER[workflow.slug];
   if (!runner) { throw new Error(`Workflow runner not found for workflow ${workflow.slug}`); }
 
-  const runnerWorkflowUser = runner()(workflowUser);
+  const runnerWorkflowUser = await runner()(workflowUser);
   if (runnerWorkflowUser.id !== workflowUser.id) {
-    runWorkflow(runnerWorkflowUser)
+    await runWorkflow(runnerWorkflowUser)
   }
 };

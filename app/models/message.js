@@ -27,10 +27,20 @@ const getDb = require('./base_model.js');
  */
 const Messages = () => {
   const query = getDb('messages');
+  
   query.lastRelevantMessages = async (workflowUserId) => {
-    const thirdToTast = getDb('messages').where('workflow_user_id', workflowUserId).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(3);
-    return query.where('workflow_user_id', workflowUserId).whereRaw('id > ?', [thirdToTast[0].id]).orderBy('created_at', 'asc');
+    const [thirdToTast] = await getDb('messages').where(
+      'workflow_user_id',
+      workflowUserId
+    ).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(3);
+
+    const messages = query.where('workflow_user_id', workflowUserId).orderBy('created_at', 'asc');
+    if (thirdToTast) {
+      messages.whereRaw('id > ?', [thirdToTast.id])
+    }
+    return messages;
   };
+  
   return query
 }
 
