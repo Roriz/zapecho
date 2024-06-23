@@ -1,3 +1,4 @@
+const knex = require('knex');
 const Workflows = require('~/models/workflow.js');
 
 const WORKFLOW_TO_RUNNER = {
@@ -8,11 +9,33 @@ const WORKFLOW_TO_RUNNER = {
 module.exports = async function runWorkflow(workflowUser) {
   const workflow = await Workflows().findOne('id', workflowUser.workflow_id);
 
+  if (workflowUser.is_running) { console.warn(`Workflow ${workflow.slug} is already running`); return; }
+
   const runner = WORKFLOW_TO_RUNNER[workflow.slug];
   if (!runner) { throw new Error(`Workflow runner not found for workflow ${workflow.slug}`); }
 
-  const runnerWorkflowUser = await runner()(workflowUser);
-  if (runnerWorkflowUser.id !== workflowUser.id) {
-    await runWorkflow(runnerWorkflowUser)
+  await Workflows().update(workflowUser.id, {
+    is_running: true,
+    last_runned_failed_at: null,
+  });
+
+  try {
+    knex.transaction(async () => {
+      const runnerWorkflowUser = await runner()(workflowUser);
+
+      await Workflows().update(workflowUser.id, {
+        is_running: false,
+        last_runned_finished_at: new Date(),
+      });
+
+      if (runnerWorkflowUser.id !== workflowUser.id) {
+        await runWorkflow(runnerWorkflowUser)
+      }
+    })
+  } catch (error) {
+    await Workflows().update(workflowUser.id, {
+      is_running: false,
+      last_runned_failed_at: new Date(),
+    });
   }
 };

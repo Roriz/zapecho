@@ -1,4 +1,6 @@
-require('dotenv').config({ path: `../.env.${process.env.NODE_ENV}` });
+const absoluteDir = __filename.split(`/`).slice(0, -1).join(`/`)
+
+require('dotenv').config({ path: `${absoluteDir}/../.env.${process.env.NODE_ENV}` });
 
 function shared() {
   return {

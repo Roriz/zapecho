@@ -1,15 +1,10 @@
+require('../lib/relative_absolute.js');
+
 const Clients = require('../app/models/client.js');
 const Workflows = require('../app/models/workflow.js');
+const { openaiSDK } = require('../app/repositories/openai_repository.js');
 
-(async () => {
-  console.info('Inserting clients...');
-  const ecommerceDemo = await Workflows().select('id').findOne({ slug: 'ecommerce-demo' });
-
-  await Clients().insert({
-    name: 'Moda da MIMI',
-    findable_message: 'Eu quero me mimizar!',
-    first_workflow_id: ecommerceDemo.id,
-    assistant_instructions: `
+const assistant_instructions = `
 You are an AI assistant for Moda da MIMI, a company that sells unique, self-created T-shirts with cat themes and cat jokes. Your role is to facilitate fast, fluid, and natural conversations between the company's assistent and users. Your tone should be playful, fun, and colloquial, appealing to an audience of pet parents.
 
 **Guidelines**:
@@ -57,9 +52,26 @@ T-shirts with cat themes and jokes:
   - Qual o prazo de entrega? Normalmente, nossos pedidos chegam em 5-7 dias úteis.
 **Conclusion**:
 Aim to provide a delightful and efficient customer experience. Your goal is to make customers feel welcome, entertained, and satisfied with their interaction at Moda da MIMI.
-    `,
-    openai_assistant_id: 'asdasd',
+`;
+
+(async () => {
+  console.info('Inserting clients...');
+  const ecommerceDemo = await Workflows().select('id').findOne({ slug: 'ecommerce-demo' });
+  
+  const assistant = await openaiSDK().beta.assistants.create({
+    name: 'Moda da MIMI',
+    instructions: assistant_instructions,
+    model: 'gpt-3.5-turbo',
   });
+  console.log(assistant)
+
+  // await Clients().insert({
+  //   name: 'Moda da MIMI',
+  //   findable_message: 'Eu quero me mimizar!',
+  //   first_workflow_id: ecommerceDemo.id,
+  //   assistant_instructions,
+  //   openai_assistant_id: assistant.id,
+  // });
   console.info('Clients inserted.');
   process.exit(0);
 })()
