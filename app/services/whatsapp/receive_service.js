@@ -90,7 +90,7 @@ const findOrActivateWorkflowUser = async (user, clientId) => {
   });
 };
 
-module.exports = async function whatsappReceiveService(params) {
+async function receiveMessage(params) {
   const channel = await findChannel(params.metadata.phone_number_id);
   if (!channel) { throw new Error('Channel not found'); }
 
@@ -111,4 +111,23 @@ module.exports = async function whatsappReceiveService(params) {
   }
 
   return message;
+}
+
+async function markMessagesAsRead(params) {
+  const whatsappIds = params.statuses.map((status) => status.id);
+  const readTimestamp = params.statuses[0].timestamp;
+
+  return Messages().whereIn('whatsapp_id', whatsappIds).update({
+    user_read_at: new Date(readTimestamp * 1000),
+  });
+}
+
+module.exports = async function whatsappReceiveService(params) {
+  if (params.statuses) {
+    markMessagesAsRead(params);
+
+    return;
+  }
+
+  return receiveMessage(params);
 };

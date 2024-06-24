@@ -7,7 +7,7 @@ module.exports = async function routerClientRunner(workflowUser) {
   
   await WorkflowUsers().updateOne(workflowUser, {
     finished_at: new Date(),
-    current_step: 'finished'
+    status: 'finished'
   });
 
   const workflowUserByClient = await WorkflowUsers().insert({

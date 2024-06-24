@@ -9,7 +9,7 @@ exports.up = function(knex) {
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.integer('workflow_user_id').notNullable();
     table.string('workflow_user_status').notNullable();
-    table.integer('agent_slug').notNullable();
+    table.string('agent_slug').notNullable();
     table.text('message_body').notNullable();
     table.string('openai_run_id').notNullable();
     table.string('openai_message_id').notNullable();

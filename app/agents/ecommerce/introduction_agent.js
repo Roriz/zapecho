@@ -1,4 +1,6 @@
-const { threadRun, dataExtractor } = require('~/repositories/openai_repository.js');
+const { threadRun } = require('~/repositories/openai_repository.js');
+const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
+const Messages = require('~/models/message.js');
 const Clients = require('~/models/client.js');
 const AgentRuns = require('~/models/agent_run.js');
 
@@ -22,11 +24,12 @@ const DATA_TO_EXTRACT = {
 
 module.exports = {
   run: async function introductionAgent(workflowUser) {
-    const lastRelevantMessages = await Message().lastRelevantMessages(workflowUser.id)
+    const lastRelevantMessages = await Messages().lastRelevantMessages(workflowUser.id)
     const data = dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT)
     if (data.user_wants_to_see_products || data.user_request_a_search_or_product_detail) {
       return AgentRuns().insert({
         agent_slug: 'introduction',
+        workflow_user_id: workflowUser.id,
         workflow_user_status: workflowUser.status,
         is_complete: true
       });
@@ -34,7 +37,7 @@ module.exports = {
 
     const client = await Clients().findOne('id', workflowUser.client_id);
 
-    const agentRun = await threadRun(
+    const agentRunParams = await threadRun(
       workflowUser.openai_thread_id,
       client.openai_assistant_id,
       PROMPT
@@ -43,14 +46,15 @@ module.exports = {
     // TODO: send footer or attach itens on the message
     // const nextAction = agentRun.message_body.match(/#(\w+)/)[1];
 
-    return AgentRuns().insert({
+    return  AgentRuns().insert({
       agent_slug: 'introduction',
+      workflow_user_id: workflowUser.id,
       workflow_user_status: workflowUser.status,
       is_complete: false,
-      message_body: agentRun.message_body,
-      openai_run_id: agentRun.openai_run_id,
-      openai_message_id: agentRun.openai_message_id,
-      total_tokens: agentRun.total_tokens,
+      message_body: agentRunParams.message_body,
+      openai_run_id: agentRunParams.openai_run_id,
+      openai_message_id: agentRunParams.openai_message_id,
+      total_tokens: agentRunParams.total_tokens,
     });
   }
 }

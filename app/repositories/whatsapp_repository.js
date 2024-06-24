@@ -2,7 +2,7 @@ const axios = require('axios');
 const Users = require('~/models/user.js');
 
 const WHATSAPP_PHONE_NUMBER_ID = '316864934845721';
-const PERMANENT_TOKEN = 'EAAErNEdwc78BO7TedcFZCMZAI1MrL3FydP2tWrg07YsiBcNknDCGaYEu8InUrkw3IhEiOgsHTYGh30oMOZCgr3vbqFVvRZBMTmup6vZAGOZAEnn3OqcBIiVaNRpFdGOIam1MWMagZCGkW4MZB245wTFZBxNn2lMVOGwaFFiaqaJZCzG6Lp3UbOpMGypMEE9ZA2OVbiemWHVYIeAHkO8oVwszKMZD';
+const PERMANENT_TOKEN = 'EAAErNEdwc78BO6zMZAb34nR0054BYQSDWGAGfTev0hfJmN3np85dvXifjmbSfwWC4Y2zV3clDgD7iGZC9QitwiVvgQgenK2sysIfRZB94WMyGSinPQJnKo9Far9zDVQlJUPD1ewKkwqbD1rjVLpffVLbgdxW9tntYgDIOWzrM7lPZCXh5rzZC3iDucdY8mwb6huUOiHPKmZAaSW3vmWgU4';
 const WHATSAPP_URL = 'https://graph.facebook.com/v20.0';
 const DEFAULT_HEADERS = {
   'Content-Type': 'application/json',
@@ -17,12 +17,12 @@ const sendWhatsappMessage = async (message) => {
     {
       messaging_product: 'whatsapp',
       to: user.identifier,
-      type: message.messageType,
-      ...(message.messageType === 'text' && { text: { body: message.text } }),
-      ...(message.messageType === 'template' && {
+      type: message.message_type,
+      ...(message.message_type === 'text' && { text: { body: message.body } }),
+      ...(message.message_type === 'template' && {
         template: {
-          name: message.templateName,
-          language: { code: message.templateLocale },
+          name: message.template_name,
+          language: { code: message.template_locale },
         },
       }),
     },

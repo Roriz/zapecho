@@ -1,4 +1,4 @@
-const knex = require('knex');
+const { db } = require('#/configs/database.js');
 const Workflows = require('~/models/workflow.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
 
@@ -21,7 +21,7 @@ async function runWorkflow(workflowUser) {
   });
 
   try {
-    knex.transaction(async () => {
+    await db().transaction(async () => {
       const runnerWorkflowUser = await runner()(workflowUser);
 
       await WorkflowUsers().updateOne(workflowUser, {
@@ -30,10 +30,11 @@ async function runWorkflow(workflowUser) {
       });
 
       if (runnerWorkflowUser.id !== workflowUser.id) {
-        await runWorkflow(runnerWorkflowUser)
+        runWorkflow(runnerWorkflowUser)
       }
     })
   } catch (error) {
+    console.error({ code: 'workflows/run_service', payload: error });
     await WorkflowUsers().updateOne(workflowUser, {
       is_running: false,
       last_runned_failed_at: new Date(),

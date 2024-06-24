@@ -11,14 +11,14 @@ const MESSAGE_TYPE_TO_AGENT_ROLE = {
 }
 
 const STATUS_TO_AGENT = {
-  'introduction': () => require('../services/workflows/agents/ecommerce/introduction_agent.js'),
-  'search': () => require('../agents/ecommerce/search_agent.js'),
-  'product_detail': () => require('../agents/ecommerce/product_detail_agent.js'),
-  'cart': () => require('../agents/ecommerce/cart_agent.js'),
-  'signup': () => require('../functions/ecommerce/signup_agent.js'),
-  'payment': () => require('../functions/ecommerce/payment_agent.js'),
-  'order_confirmation': () => require('../functions/ecommerce/order_confirmation_agent.js'),
-  'cancelled': () => require('../functions/ecommerce/cancelled_agent.js'),
+  'introduction': () => require('~/agents/ecommerce/introduction_agent.js'),
+  'search': () => require('~/agents/ecommerce/search_agent.js'),
+  'product_detail': () => require('~/agents/ecommerce/product_detail_agent.js'),
+  'cart': () => require('~/agents/ecommerce/cart_agent.js'),
+  'signup': () => require('~/agents/ecommerce/signup_agent.js'),
+  'payment': () => require('~/agents/ecommerce/payment_agent.js'),
+  'order_confirmation': () => require('~/agents/ecommerce/order_confirmation_agent.js'),
+  'cancelled': () => require('~/agents/ecommerce/cancelled_agent.js'),
 }
 
 const NEXT_STATUS_FOR = {
@@ -90,8 +90,9 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
     workflowUser = await WorkflowUser().updateOne(workflowUser, { status: FIRST_STATUS });
   }
 
-  const agentRun = await STATUS_TO_AGENT[workflowUser.status]().run(workflowUser);
-
+  const agent = STATUS_TO_AGENT[workflowUser.status]()
+  const agentRun = await agent.run(workflowUser);
+  
   await sendService(agentRun)
   
   if (agentRun.is_complete && !agentRun.message_body) {

@@ -4,7 +4,7 @@
   "scripts": {
     "test": "node --test test/**/*.test.js",
     "start": "node app.js",
-    "dev": "npm run migrate && nodemon -q --watch . --exec 'node app.js'",
+    "dev": "npm run migrate && nodemon -q --watch . --exec 'node --stack-trace-limit=1000 --stack-size=1024 app.js'",
     "lint": "npx eslint . --ext .js --fix",
     "migrate": "npm run unlock && npx knex migrate:latest --esm --knexfile ./configs/database.js",
     "rollback": "npm run unlock && npx knex migrate:rollback --esm --knexfile ./configs/database.js",

@@ -1,0 +1,17 @@
+require('../lib/relative_absolute.js');
+
+const WorkflowUsers = require('~/models/workflow_user.js');
+const run_service = require('~/services/workflows/run_service.js');
+
+(async () => {
+  console.info('Reruning failed workflows...');
+
+  const workflow_users = await WorkflowUsers().whereNotNull('last_runned_failed_at');
+  for (const workflow_user of workflow_users) {
+    console.info(`Reruning workflow user ${workflow_user.id}...`);
+    await run_service(workflow_user);
+  }
+  
+  console.info('workflows runned.');
+  process.exit(0);
+})()
