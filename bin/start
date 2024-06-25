@@ -1,0 +1,4 @@
+#!/bin/sh
+
+ngrok http --domain=local.zapecho.com 8081 &
+docker compose up

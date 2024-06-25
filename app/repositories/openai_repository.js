@@ -16,7 +16,7 @@ function openaiSDK() {
 }
 
 async function threadRun(thread_id, assistant_id, PROMPT) {
-  const agentRun = {
+  const agentRunParams = {
     message_body: undefined,
     openai_run_id: undefined,
     openai_message_id: undefined,
@@ -25,22 +25,30 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
 
   const run = openaiSDK().beta.threads.runs.stream(
     thread_id, {
-    assistant_id: assistant_id,
+    assistant_id,
     additional_instructions: PROMPT,
     stream: true,
   }).on('event', ({event, data}) => {
     if (event === 'thread.run.step.completed') {
-      agentRun.total_tokens = data.usage.total_tokens
+      agentRunParams.total_tokens = data.usage.total_tokens
     } else if (event === 'thread.message.completed') {
-      agentRun.openai_run_id = data.run_id
-      agentRun.openai_message_id = data.id
-      agentRun.message_body = data.content[0].text.value
+      agentRunParams.openai_run_id = data.run_id
+      agentRunParams.openai_message_id = data.id
+      agentRunParams.message_body = data.content[0].text.value
     }
   })
 
   await run.finalRun();
 
-  return agentRun;
+  const actions = agentRunParams.message_body.match(/#\w+/g) || [];
+  if (actions.count) {
+    agentRunParams.actions = actions;
+    actions.forEach(action => {
+      agentRunParams.message_body = agentRunParams.message_body.replaceAll(action, '');
+    })
+  }
+
+  return agentRunParams;
 }
 
 async function functionCall(messages, functionAndSchema, model = DEFAULT_MODEL) {

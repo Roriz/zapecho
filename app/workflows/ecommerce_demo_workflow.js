@@ -2,31 +2,18 @@ const Message = require('~/models/message.js');
 const WorkflowUser = require('~/models/workflow_user.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
-const { nextAction } = require('~/repositories/openai/next_action_repository.js');
+const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
 const sendService = require('~/services/whatsapp/send_service.js');
-
-const MESSAGE_TYPE_TO_AGENT_ROLE = {
-  'user': 'user',
-  'agent': 'assistant',
-}
 
 const STATUS_TO_AGENT = {
   'introduction': () => require('~/agents/ecommerce/introduction_agent.js'),
-  'search': () => require('~/agents/ecommerce/search_agent.js'),
-  'product_detail': () => require('~/agents/ecommerce/product_detail_agent.js'),
-  'cart': () => require('~/agents/ecommerce/cart_agent.js'),
-  'signup': () => require('~/agents/ecommerce/signup_agent.js'),
-  'payment': () => require('~/agents/ecommerce/payment_agent.js'),
-  'order_confirmation': () => require('~/agents/ecommerce/order_confirmation_agent.js'),
-  'cancelled': () => require('~/agents/ecommerce/cancelled_agent.js'),
-}
-
-const NEXT_STATUS_FOR = {
-  'introduction': ['search', 'product_detail'],
-  'search': ['product_detail', 'cart'],
-  'product_detail': ['search', 'cart'],
-  'cart': ['signup'],
-  'payment': ['order_confirmation']
+  // 'search': () => require('~/agents/ecommerce/search_agent.js'),
+  // 'product_detail': () => require('~/agents/ecommerce/product_detail_agent.js'),
+  // 'cart': () => require('~/agents/ecommerce/cart_agent.js'),
+  // 'signup': () => require('~/agents/ecommerce/signup_agent.js'),
+  // 'payment': () => require('~/agents/ecommerce/payment_agent.js'),
+  // 'order_confirmation': () => require('~/agents/ecommerce/order_confirmation_agent.js'),
+  // 'cancelled': () => require('~/agents/ecommerce/cancelled_agent.js'),
 }
 
 const FIRST_STATUS = 'introduction';
@@ -42,15 +29,8 @@ async function addMessagesToThread(workflowUser) {
   return Promise.all(messages.map(async (message) => {
     if (!message.body) { return; }
 
-    const threadMessage = await openaiSDK().beta.threads.messages.create(
-      workflowUser.openai_thread_id,
-      {
-        role: MESSAGE_TYPE_TO_AGENT_ROLE[message.sender_type],
-        content: message.body
-      }
-    );
-
-    Message().updateOne(message, { openai_id: threadMessage.id });
+    const threadMessage = await addMessageToThread(workflowUser.openai_thread_id, message);
+    await Message().updateOne(message, { openai_id: threadMessage.id });
 
     return message;
   }));
@@ -69,6 +49,45 @@ const DATA_TO_EXTRACT = {
     `
   }
 }
+async function extract_workflow_data(workflowUser) {
+  const lastRelevantMessages = await Message().lastRelevantMessages(workflowUser.id);
+  const extractedData = await dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT);
+
+  if (extractedData) {
+    return WorkflowUser().updateOne(workflowUser, { extracted_data: {...workflowUser.extracted_data, ...extractedData} });
+  } else {
+    return workflowUser
+  }
+}
+
+function getRandomBetween(a, b) {
+  return Math.floor(Math.random() * (b - a + 1)) + a;
+}
+
+function wait(time) {
+  return new Promise((resolve) => { setTimeout(resolve, time) });
+}
+
+async function sendMessage(agentRun, lastMessage) {
+  let nextMessageAt = new Date(lastMessage.created_at);
+  nextMessageAt.setMinutes(nextMessageAt.getMinutes() + getRandomBetween(2, 5));
+  
+  const bodyMessages = agentRun.message_body?.trim()?.split('\n\n') || [];
+  for (let bodyMessage of bodyMessages) {
+    const timeToSend = new Date().getTime() - nextMessageAt.getTime();
+
+    await wait(math.max(timeToSend, 0));
+    await sendService({
+      workflow_user_id: agentRun.workflow_user_id,
+      openai_message_id: agentRun.openai_message_id,
+      channel_id: lastMessage.channel_id,
+      body: bodyMessage.trim(),
+    })
+
+    nextMessageAt = new Date();
+    nextMessageAt.setSeconds(nextMessageAt.getSeconds() + getRandomBetween(20, 50));
+  }
+}
 
 module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   if (!workflowUser.openai_thread_id) {
@@ -77,12 +96,11 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
 
   const messages = await addMessagesToThread(workflowUser)
   
-  const lastRelevantMessages = await Message().lastRelevantMessages(workflowUser.id);
-  const extractedData = await dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT)
-  if (extractedData.the_subject_is_not_relevant) {
-    Message().where('id', messages.map(m => m.id)).where({ whatsapp_id: null }).update({ ignored_at: new Date() }); 
+  workflowUser = await extract_workflow_data(workflowUser)
+  if (workflowUser.extracted_data?.the_subject_is_not_relevant) {
+    Message().where('id', messages.map(m => m.id)).update({ ignored_at: new Date() }); 
     return workflowUser;
-  } else if (extractedData.user_do_not_want_to_continue) {
+  } else if (workflowUser.extracted_data?.user_do_not_want_to_continue) {
     workflowUser = await WorkflowUser().updateOne(workflowUser, { status: 'cancelled' });
   } 
   
@@ -93,14 +111,12 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   const agent = STATUS_TO_AGENT[workflowUser.status]()
   const agentRun = await agent.run(workflowUser);
   
-  await sendService(agentRun)
+  sendMessage(agentRun, messages.at(-1));
   
   if (agentRun.is_complete && !agentRun.message_body) {
-    const nextStatus = await nextAction(lastRelevantMessages, NEXT_STATUS_FOR[workflowUser.status]);
-    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: nextStatus });
-
+    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: FIRST_STATUS });
     return ecommerceDemoWorkflow(workflowUser);
+  } else {
+    return workflowUser;
   }
-
-  return workflowUser;
 }

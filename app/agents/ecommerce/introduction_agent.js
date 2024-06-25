@@ -4,13 +4,6 @@ const Messages = require('~/models/message.js');
 const Clients = require('~/models/client.js');
 const AgentRuns = require('~/models/agent_run.js');
 
-const PROMPT = `
-act as sales representative and welcome the user and introduce the company. Be responsive and helpful.
-Your goal is to make the user be interested in any product or make a search, but don't be too pushy.
-
-Next possible attach a product of the day as footer of the message. To do that, you will write #product_of_the_day at the end of your message.
-`
-
 const DATA_TO_EXTRACT = {
   user_wants_to_see_products: {
     type: 'boolean',
@@ -22,11 +15,33 @@ const DATA_TO_EXTRACT = {
   }
 }
 
+async function extract_workflow_data(workflowUser) {
+  const lastRelevantMessages = await Message().lastRelevantMessages(workflowUser.id);
+  const extractedData = await dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT);
+
+  if (extractedData) {
+    return WorkflowUser().updateOne(workflowUser, { extracted_data: {...workflowUser.extracted_data, ...extractedData} });
+  } else {
+    return workflowUser
+  }
+}
+
+const PROMPT = `
+act as sales representative and welcome the user and introduce the company. Be responsive and helpful.
+Your goal is to make the user be interested in any product or make a search, but don't be too pushy.
+
+**Attachs**
+If you thinking is fit for the message, you can attach stuff on the message. Available attachments:
+#product_of_the_day: Attach image and small description of a product of the day at the end of the message.
+
+**Actions**
+In case the user shows interest in products or make a search, respond with #search without any other text.
+`
+
 module.exports = {
   run: async function introductionAgent(workflowUser) {
-    const lastRelevantMessages = await Messages().lastRelevantMessages(workflowUser.id)
-    const data = dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT)
-    if (data.user_wants_to_see_products || data.user_request_a_search_or_product_detail) {
+    workflowUser = await extract_workflow_data(workflowUser);
+    if (workflowUser.extracted_data.user_wants_to_see_products || workflowUser.extracted_data.user_request_a_search_or_product_detail) {
       return AgentRuns().insert({
         agent_slug: 'introduction',
         workflow_user_id: workflowUser.id,
@@ -43,18 +58,29 @@ module.exports = {
       PROMPT
     );
 
-    // TODO: send footer or attach itens on the message
-    // const nextAction = agentRun.message_body.match(/#(\w+)/)[1];
-
-    return  AgentRuns().insert({
-      agent_slug: 'introduction',
-      workflow_user_id: workflowUser.id,
-      workflow_user_status: workflowUser.status,
-      is_complete: false,
-      message_body: agentRunParams.message_body,
-      openai_run_id: agentRunParams.openai_run_id,
-      openai_message_id: agentRunParams.openai_message_id,
-      total_tokens: agentRunParams.total_tokens,
-    });
+    if (agentRunParams.actions.includes('#search')) {
+      return AgentRuns().insert({
+        agent_slug: 'introduction',
+        workflow_user_id: workflowUser.id,
+        workflow_user_status: workflowUser.status,
+        is_complete: true,
+        actions: agentRunParams.actions,
+        openai_run_id: agentRunParams.openai_run_id,
+        openai_message_id: agentRunParams.openai_message_id,
+        total_tokens: agentRunParams.total_tokens,
+      });
+    } else {
+      return  AgentRuns().insert({
+        agent_slug: 'introduction',
+        workflow_user_id: workflowUser.id,
+        workflow_user_status: workflowUser.status,
+        is_complete: false,
+        message_body: agentRunParams.message_body,
+        actions: agentRunParams.actions,
+        openai_run_id: agentRunParams.openai_run_id,
+        openai_message_id: agentRunParams.openai_message_id,
+        total_tokens: agentRunParams.total_tokens,
+      });
+    }
   }
 }
