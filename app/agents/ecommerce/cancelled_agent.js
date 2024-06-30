@@ -4,56 +4,59 @@ const AgentRuns = require('~/models/agent_run.js');
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 
 const DATA_TO_EXTRACT = {
-  user_wants_to_see_products: {
+  has_gone_too_pushy: {
     type: 'boolean',
-    description: `User demonstrates interest in seeing products.`
+    description: 'Assistant already made the last attempt, but the user did not show interest in products or make a search.'
   },
-  user_request_a_search_or_product_detail: {
+  assistant_already_says_goodbye: {
     type: 'boolean',
-    description: `User requests a search or a product detail.`
-  }
+    description: 'Assistant already made the farewell message to the user.'
+  },
 }
 
-const PROMPT = `
-act as sales representative and welcome the user and introduce the company. Be responsive and helpful.
-Your goal is to make the user be interested in any product or make a search, but don't be too pushy.
-
-**Attachs**
-If you thinking is fit for the message, you can attach stuff on the message. Available attachments:
-#product_of_the_day: Attach image and small description of a product of the day at the end of the message.
+const LAST_TRY_PROMPT = `
+act as senior customer experience and make a last attempt to keep the user engaged. Be responsive and helpful.
+your goal is discover what has gone wrong and try to solve the problem one last time. Don't be too pushy.
 
 **Actions**
 In case the user shows interest in products or make a search, respond with #search.
 `
 
-AGENT_SLUG = 'ecommerce-introduction';
+const FAREWELL_PROMPT = `
+act as senior customer experience and make the farewell message to the user.
+your goal is to make the user feel comfortable and welcome to come back later.
+`
+AGENT_SLUG = 'ecommerce-cancelled';
 module.exports = {
-  run: async function introductionAgent(workflowUser) {
+  run: async function cancelledAgent(workflowUser) {
+    let prompt = LAST_TRY_PROMPT
+    
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.extracted_data.user_wants_to_see_products || workflowUser.extracted_data.user_request_a_search_or_product_detail) {
+    if (workflowUser.extracted_data.assistant_already_says_goodbye) { 
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
         workflow_user_status: workflowUser.status,
-        next_status: 'search',
         is_complete: true
       });
     }
 
+    if (workflowUser.extracted_data.has_gone_too_pushy) {
+      prompt = FAREWELL_PROMPT
+    }
+    
     const client = await Clients().findOne('id', workflowUser.client_id);
-
     const agentRunParams = await threadRun(
       workflowUser.openai_thread_id,
       client.openai_assistant_id,
-      PROMPT
+      prompt
     );
 
     if (agentRunParams.actions.includes('#search')) {
-      agentRunParams.message_body = null
-      agentRunParams.is_complete = true
-      agentRunParams.next_status = 'search'
+      agentRunParams.is_complete = true;
+      agentRunParams.next_status = 'search';
     }
-    
+
     return  AgentRuns().insert({
       ...agentRunParams,
       agent_slug: AGENT_SLUG,

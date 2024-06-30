@@ -11,6 +11,8 @@ function shared() {
 
     openai_api_key: process.env.OPENAI_API_KEY,
     openai_project_id: process.env.OPENAI_PROJECT_ID,
+   
+    whatsapp_permanent_token: process.env.WHATSAPP_PERMANENT_TOKEN,
   }
 }
 

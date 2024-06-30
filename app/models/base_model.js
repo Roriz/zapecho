@@ -1,4 +1,4 @@
-const { db } = require('../../configs/database.js');
+const { db } = require('#/configs/database.js');
 
 function getDb(tableName) {
   const query = db()(tableName);

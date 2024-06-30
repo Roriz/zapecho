@@ -7,13 +7,13 @@ const sendService = require('~/services/whatsapp/send_service.js');
 
 const STATUS_TO_AGENT = {
   'introduction': () => require('~/agents/ecommerce/introduction_agent.js'),
-  // 'search': () => require('~/agents/ecommerce/search_agent.js'),
-  // 'product_detail': () => require('~/agents/ecommerce/product_detail_agent.js'),
+  'search': () => require('~/agents/ecommerce/search_agent.js'),
+  'product_detail': () => require('~/agents/ecommerce/product_detail_agent.js'),
   // 'cart': () => require('~/agents/ecommerce/cart_agent.js'),
   // 'signup': () => require('~/agents/ecommerce/signup_agent.js'),
   // 'payment': () => require('~/agents/ecommerce/payment_agent.js'),
   // 'order_confirmation': () => require('~/agents/ecommerce/order_confirmation_agent.js'),
-  // 'cancelled': () => require('~/agents/ecommerce/cancelled_agent.js'),
+  'cancelled': () => require('~/agents/ecommerce/cancelled_agent.js'),
 }
 
 const FIRST_STATUS = 'introduction';
@@ -68,6 +68,8 @@ function wait(time) {
   return new Promise((resolve) => { setTimeout(resolve, time) });
 }
 
+// TODO: be agnostic to the send service using the channel as orchestrator
+// the timer should be per channel config
 async function sendMessage(agentRun, lastMessage) {
   let nextMessageAt = new Date(lastMessage.created_at);
   nextMessageAt.setMinutes(nextMessageAt.getMinutes() + getRandomBetween(2, 5));
@@ -76,7 +78,7 @@ async function sendMessage(agentRun, lastMessage) {
   for (let bodyMessage of bodyMessages) {
     const timeToSend = new Date().getTime() - nextMessageAt.getTime();
 
-    await wait(math.max(timeToSend, 0));
+    // await wait(math.max(timeToSend, 0));
     await sendService({
       workflow_user_id: agentRun.workflow_user_id,
       openai_message_id: agentRun.openai_message_id,
@@ -85,7 +87,7 @@ async function sendMessage(agentRun, lastMessage) {
     })
 
     nextMessageAt = new Date();
-    nextMessageAt.setSeconds(nextMessageAt.getSeconds() + getRandomBetween(20, 50));
+    // nextMessageAt.setSeconds(nextMessageAt.getSeconds() + getRandomBetween(20, 50));
   }
 }
 
@@ -111,12 +113,15 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   const agent = STATUS_TO_AGENT[workflowUser.status]()
   const agentRun = await agent.run(workflowUser);
   
+  // TODO: validate if need to send a message
   sendMessage(agentRun, messages.at(-1));
   
-  if (agentRun.is_complete && !agentRun.message_body) {
-    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: FIRST_STATUS });
-    return ecommerceDemoWorkflow(workflowUser);
-  } else {
-    return workflowUser;
+  if (agentRun.is_complete) {
+    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: agentRun.next_status });
+    if (!agentRun.message_body) {
+      return ecommerceDemoWorkflow(workflowUser);
+    }
   }
+
+  return workflowUser;
 }

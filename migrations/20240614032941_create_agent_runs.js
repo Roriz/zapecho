@@ -7,7 +7,7 @@ exports.up = function(knex) {
     table.increments('id').primary();
     table.timestamp('created_at', { precision: 6 }).notNullable();
     table.timestamp('updated_at', { precision: 6 }).notNullable();
-    table.integer('workflow_user_id').notNullable();
+    table.integer('workflow_user_id').unsigned().notNullable();
     table.string('workflow_user_status').notNullable();
     table.string('agent_slug').notNullable();
     table.text('message_body').notNullable();

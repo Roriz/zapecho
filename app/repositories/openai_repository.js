@@ -21,6 +21,7 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
     openai_run_id: undefined,
     openai_message_id: undefined,
     total_tokens: undefined,
+    actions: [],
   }
 
   const run = openaiSDK().beta.threads.runs.stream(
@@ -41,10 +42,10 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
   await run.finalRun();
 
   const actions = agentRunParams.message_body.match(/#\w+/g) || [];
-  if (actions.count) {
+  if (actions.length) {
     agentRunParams.actions = actions;
     actions.forEach(action => {
-      agentRunParams.message_body = agentRunParams.message_body.replaceAll(action, '');
+      agentRunParams.message_body = agentRunParams.message_body.replaceAll(action, '').trim();
     })
   }
 

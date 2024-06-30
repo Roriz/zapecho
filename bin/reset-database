@@ -1,0 +1,21 @@
+#!/usr/local/bin/node
+
+require('../lib/relative_absolute.js');
+const { db } = require('#/configs/database.js');
+const envParams = require('#/configs/env_params');
+
+(async () => {
+  try {
+    await db().raw(`DROP DATABASE IF EXISTS ${envParams().database_name};`)
+    console.info('Database dropped successfully');
+    await db().raw(`CREATE DATABASE \`${envParams().database_name}\``)
+    console.info('Database created successfully');
+    await db().migrate.latest()
+    console.info('Migrations run successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
+  }
+})()
+

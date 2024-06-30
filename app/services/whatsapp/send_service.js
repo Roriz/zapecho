@@ -14,17 +14,14 @@ module.exports = async function whatsappSendService(messageParams) {
     client_id: workflowUser.client_id,
     workflow_user_id: messageParams.workflow_user_id,
     channel_id: messageParams.channel_id,
-    body: messageParams.message_body,
+    body: messageParams.body,
     openai_id: messageParams.openai_message_id,
   });
 
   const response = await sendWhatsappMessage(message)
 
-  console.log('-------------------------sended message-----------------')
-  console.log(response)
-
   await Message().where('id', message.id).update({
-    whatsapp_id: response.id,
+    whatsapp_id: response.messages[0].id,
     whatsapp_created_at: new Date(),
   });
 

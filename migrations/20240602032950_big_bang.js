@@ -18,12 +18,12 @@ exports.up = (knex) => Promise.all([
     table.timestamp('created_at', { precision: 6 }).notNullable();
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.string('name').notNullable();
-    table.bigInteger('first_workflow_id').notNullable();
+    table.integer('first_workflow_id').unsigned().notNullable();
     table.string('findable_message');
     table.text('assistant_instructions').notNullable();
     table.string('openai_assistant_id');
 
-    table.foreign('first_workflow_id').references('workflows.id').deferrable('deferred');
+    table.foreign('first_workflow_id').references('workflows.id').onDelete('CASCADE');
   }),
 
   knex.schema.createTable('workflows', (table) => {
@@ -41,17 +41,17 @@ exports.up = (knex) => Promise.all([
     table.increments();
     table.timestamp('created_at', { precision: 6 }).notNullable();
     table.timestamp('updated_at', { precision: 6 }).notNullable();
-    table.bigInteger('user_id').notNullable();
-    table.bigInteger('workflow_id').notNullable();
-    table.bigInteger('client_id');
+    table.integer('user_id').unsigned().notNullable();
+    table.integer('workflow_id').unsigned().notNullable();
+    table.integer('client_id').unsigned();
     table.string('status');
     table.timestamp('finished_at', { precision: 6 });
     table.jsonb('answers_data').defaultTo('{}').notNullable();
     table.string('openai_thread_id');
 
-    table.foreign('user_id').references('users.id').deferrable('deferred');
-    table.foreign('workflow_id').references('workflows.id').deferrable('deferred');
-    table.foreign('client_id').references('clients.id').deferrable('deferred');
+    table.foreign('user_id').references('users.id').onDelete('CASCADE');
+    table.foreign('workflow_id').references('workflows.id').onDelete('CASCADE');
+    table.foreign('client_id').references('clients.id').onDelete('CASCADE');
   }),
 
   knex.schema.createTable('channels', (table) => {
@@ -60,9 +60,9 @@ exports.up = (knex) => Promise.all([
     table.timestamp('updated_at', { precision: 6 }).notNullable();
     table.enu('type', ['whatsapp', 'telegram']).notNullable();
     table.string('external_id').notNullable();
-    table.bigInteger('client_id');
+    table.integer('client_id').unsigned();
 
-    table.foreign('client_id').references('clients.id').deferrable('deferred');
+    table.foreign('client_id').references('clients.id').onDelete('CASCADE');
 
     table.unique(['type', 'external_id']);
   }),
@@ -71,10 +71,10 @@ exports.up = (knex) => Promise.all([
     table.increments();
     table.timestamp('created_at', { precision: 6 }).notNullable();
     table.timestamp('updated_at', { precision: 6 }).notNullable();
-    table.bigInteger('user_id').notNullable();
-    table.bigInteger('channel_id').notNullable();
-    table.bigInteger('client_id');
-    table.bigInteger('workflow_user_id');
+    table.integer('user_id').unsigned().notNullable();
+    table.integer('channel_id').unsigned().notNullable();
+    table.integer('client_id').unsigned();
+    table.integer('workflow_user_id').unsigned();
     table.enu('sender_type', ['user', 'client', 'agent']).notNullable();
     table.text('body');
     table.string('message_type').notNullable();
@@ -90,10 +90,10 @@ exports.up = (knex) => Promise.all([
     table.timestamp('whatsapp_created_at', { precision: 6 });
     table.timestamp('ignored_at', { precision: 6 });
 
-    table.foreign('user_id').references('users.id').deferrable('deferred');
-    table.foreign('client_id').references('clients.id').deferrable('deferred');
-    table.foreign('workflow_user_id').references('workflow_users.id').deferrable('deferred');
-    table.foreign('channel_id').references('channels.id').deferrable('deferred');
+    table.foreign('user_id').references('users.id').onDelete('CASCADE');
+    table.foreign('client_id').references('clients.id').onDelete('CASCADE');
+    table.foreign('workflow_user_id').references('workflow_users.id').onDelete('CASCADE');
+    table.foreign('channel_id').references('channels.id').onDelete('CASCADE');
   }),
 ]);
 
