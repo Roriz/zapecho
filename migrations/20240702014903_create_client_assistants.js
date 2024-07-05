@@ -10,6 +10,8 @@ exports.up = function(knex) {
       table.timestamp('updated_at', { precision: 6 }).notNullable();
   
       table.text('instructions').notNullable();
+      table.text('first_message').notNullable();
+      table.text('last_message').notNullable();
       table.string('assistant_name').notNullable();
       table.string('model').notNullable();
       table.integer('client_id').unsigned().notNullable();

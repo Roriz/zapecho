@@ -25,7 +25,7 @@ const s3Persist = async (binaryFile, filePath) => {
   return s3Client.send(command);
 };
 
-const persist = async (binaryFile, filePath) => {
+const blobPersist = async (binaryFile, filePath) => {
   if (envParams().storageType === 'local') {
     return localPersist(binaryFile, filePath);
   }
@@ -33,4 +33,4 @@ const persist = async (binaryFile, filePath) => {
   return s3Persist(binaryFile, path);
 };
 
-module.exports = { persist };
+module.exports = { blobPersist };

@@ -1,6 +1,6 @@
 const pick = require('lodash/pick');
 const Products = require('~/models/product.js');
-const fileStorageCreateService = require('~/services/file_storages/create_service.js');
+const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
 
 async function ProductsUpsertService(params) {
   let product = await Products().findOne({ code: params.code });
@@ -17,11 +17,15 @@ async function ProductsUpsertService(params) {
   }
 
   if (params.photo_url || params.photo) {
-    await fileStorageCreateService({
+    await createAttachmentService({
       category: 'photo',
-      buffer: params.photo,
-      url: params.photo_url,
-    }, 'product', product.id);
+      storable_type: 'product',
+      storable_id: product.id,
+      storage_blob: {
+        url: params.photo_url,
+        buffer: params.photo,
+      }
+    });
   }
 
   return product;

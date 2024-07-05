@@ -124,6 +124,8 @@ Error.stackTraceLimit = 10000;
       client_id: client.id,
       assistant_name: assistantName,
       instructions,
+      first_message: 'Olá! Bem-vindo à Moda da MIMI! Como posso ajudar a tornar seu dia mais felino hoje?',
+      last_message: 'Obrigado por escolher a Moda da MIMI! Se precisar de mais alguma coisa, estou aqui para ajudar. 😺',
       locale_iso2: 'pt-BR',
     });
   });

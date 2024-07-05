@@ -1,7 +1,11 @@
 const { threadRun } = require('~/repositories/openai_repository.js');
 const Messages = require('~/models/message.js');
 const Clients = require('~/models/client.js');
+const Products = require('~/models/product.js');
+const StorageAttachments = require('~/models/storage_attachment.js');
 const AgentRuns = require('~/models/agent_run.js');
+const ClientsAssistants = require('~/models/clients_assistant.js');
+const { createAttachmentService } = require('~/services/storage/createAttachmentService.js');
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 
 const DATA_TO_EXTRACT = {
@@ -30,16 +34,20 @@ If you thinking is fit for the message, you can attach stuff on the message. Ava
 **Actions**
 In case the user shows interest in products or make a search, respond with #search.
 `
-const DEFAULT_FIRST_MESSAGE = "Olá! Bem-vindo à Moda da MIMI! Como posso ajudar a tornar seu dia mais felino hoje? Está procurando por algo especial para se mimizar, né? 😸 Se precisar de ajuda para escolher uma blusa divertida ou tiver alguma pergunta, estou aqui para ajudar! Qual seria a sua 'miaufilia' do dia? 🐾";
 
 AGENT_SLUG = 'ecommerce-introduction';
 module.exports = {
   run: async function introductionAgent(workflowUser) {
     const client = await Clients().findOne('id', workflowUser.client_id);
+    const assistant = await ClientsAssistants().findOne('client_id', workflowUser.client_id);
     const lastMessage = await Messages().where('workflow_user_id', workflowUser.id).orderBy('created_at', 'desc').first();
 
     if (lastMessage.body === client.findable_message) {
-      return { message_body: DEFAULT_FIRST_MESSAGE, workflow_user_id: workflowUser.id, is_complete: false };
+      return {
+        message_body: assistant.first_message,
+        workflow_user_id: workflowUser.id,
+        is_complete: false
+      };
     }
 
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
@@ -73,12 +81,26 @@ module.exports = {
       agentRunParams.is_complete = true
       agentRunParams.next_status = 'search'
     }
-    
-    return  AgentRuns().insert({
+
+    const agentRun = await AgentRuns().insert({
       ...agentRunParams,
       agent_slug: AGENT_SLUG,
       workflow_user_id: workflowUser.id,
       workflow_user_status: workflowUser.status,
     });
+
+    if (agentRunParams.actions.list?.includes('#product_of_the_day')) {
+      const product_of_the_day = await Products().where('client_id', client.id).orderBy('created_at', 'desc').first();
+      const attachment = await StorageAttachments().where('storable_type', 'product').where('storable_id', product_of_the_day.id).first();
+
+      await createAttachmentService({
+        category: 'media',
+        storable_type: 'agent_run',
+        storable_id: agentRun.id,
+        storage_blob_id: attachment.storage_blob_id
+      })
+    }
+
+    return agentRun;
   }
 }
