@@ -1,5 +1,5 @@
-const Message = require('~/models/message.js');
-const WorkflowUser = require('~/models/workflow_user.js');
+const Messages = require('~/models/message.js');
+const WorkflowUsers = require('~/models/workflow_user.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
 const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
@@ -21,16 +21,16 @@ const FIRST_STATUS = 'introduction';
 async function createThread(workflowUser) {
   const thread = await openaiSDK().beta.threads.create();
 
-  return WorkflowUser().updateOne(workflowUser, { openai_thread_id: thread.id });
+  return WorkflowUsers().updateOne(workflowUser, { openai_thread_id: thread.id });
 }
 
 async function addMessagesToThread(workflowUser) {
-  const messages = await Message().where('workflow_user_id', workflowUser.id).whereNull('openai_id').orderBy('created_at', 'asc');
+  const messages = await Messages().where('workflow_user_id', workflowUser.id).whereNull('openai_id').orderBy('created_at', 'asc');
   return Promise.all(messages.map(async (message) => {
     if (!message.body) { return; }
 
     const threadMessage = await addMessageToThread(workflowUser.openai_thread_id, message);
-    await Message().updateOne(message, { openai_id: threadMessage.id });
+    await Messages().updateOne(message, { openai_id: threadMessage.id });
 
     return message;
   }));
@@ -50,11 +50,11 @@ const DATA_TO_EXTRACT = {
   }
 }
 async function extract_workflow_data(workflowUser) {
-  const lastRelevantMessages = await Message().lastRelevantMessages(workflowUser.id);
+  const lastRelevantMessages = await Messages().lastRelevantMessages(workflowUser.id);
   const extractedData = await dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT);
 
   if (extractedData) {
-    return WorkflowUser().updateOne(workflowUser, { extracted_data: {...workflowUser.extracted_data, ...extractedData} });
+    return WorkflowUsers().updateOne(workflowUser, { extracted_data: {...workflowUser.extracted_data, ...extractedData} });
   } else {
     return workflowUser
   }
@@ -70,13 +70,13 @@ function wait(time) {
 
 // TODO: be agnostic to the send service using the channel as orchestrator
 // the timer should be per channel config
-async function sendMessage(agentRun, lastMessage) {
+async function sendMessages(agentRun, lastMessage) {
   let nextMessageAt = new Date(lastMessage.created_at);
-  nextMessageAt.setMinutes(nextMessageAt.getMinutes() + getRandomBetween(2, 5));
+  // nextMessageAt.setMinutes(nextMessageAt.getMinutes() + getRandomBetween(2, 5));
   
   const bodyMessages = agentRun.message_body?.trim()?.split('\n\n') || [];
   for (let bodyMessage of bodyMessages) {
-    const timeToSend = new Date().getTime() - nextMessageAt.getTime();
+    // const timeToSend = new Date().getTime() - nextMessageAt.getTime();
 
     // await wait(math.max(timeToSend, 0));
     await sendService({
@@ -96,28 +96,29 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
     workflowUser = await createThread(workflowUser)
   }
 
-  const messages = await addMessagesToThread(workflowUser)
+  await addMessagesToThread(workflowUser)
+  const lastUnrespondedMessages = await Messages().where('sender_type', 'user').lastRelevantMessages(workflowUser.id)
   
   workflowUser = await extract_workflow_data(workflowUser)
   if (workflowUser.extracted_data?.the_subject_is_not_relevant) {
-    Message().where('id', messages.map(m => m.id)).update({ ignored_at: new Date() }); 
+    Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 
     return workflowUser;
   } else if (workflowUser.extracted_data?.user_do_not_want_to_continue) {
-    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: 'cancelled' });
+    workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: 'cancelled' });
   } 
   
   if (!workflowUser.status) {
-    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: FIRST_STATUS });
+    workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: FIRST_STATUS });
   }
 
   const agent = STATUS_TO_AGENT[workflowUser.status]()
   const agentRun = await agent.run(workflowUser);
   
   // TODO: validate if need to send a message
-  sendMessage(agentRun, messages.at(-1));
+  sendMessages(agentRun, lastUnrespondedMessages.at(-1));
   
   if (agentRun.is_complete) {
-    workflowUser = await WorkflowUser().updateOne(workflowUser, { status: agentRun.next_status });
+    workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: agentRun.next_status });
     if (!agentRun.message_body) {
       return ecommerceDemoWorkflow(workflowUser);
     }

@@ -10,7 +10,7 @@ exports.up = function(knex) {
     table.integer('workflow_user_id').unsigned().notNullable();
     table.string('workflow_user_status').notNullable();
     table.string('agent_slug').notNullable();
-    table.text('message_body').notNullable();
+    table.text('message_body');
     table.string('openai_run_id').notNullable();
     table.string('openai_message_id').notNullable();
     table.integer('total_tokens').notNullable();

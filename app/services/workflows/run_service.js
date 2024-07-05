@@ -30,7 +30,7 @@ async function runWorkflow(workflowUser) {
       });
 
       if (runnerWorkflowUser.id !== workflowUser.id) {
-        runWorkflow(runnerWorkflowUser)
+        await runWorkflow(runnerWorkflowUser)
       }
     })
   } catch (error) {

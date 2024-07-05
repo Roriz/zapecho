@@ -34,7 +34,7 @@ cor: branca
 """
 `
 
-AGENT_SLUG = 'ecommerce-search';
+AGENT_SLUG = 'ecommerce-product-detail';
 module.exports = {
   run: async function productDetailAgent(workflowUser) {
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);

@@ -8,7 +8,7 @@ exports.up = (knex) => knex.schema.createTable('file_storages', (table) => {
   table.timestamp('updated_at', { precision: 6 }).notNullable();
   table.string('original_name').notNullable();
   table.string('mimetype').notNullable();
-  table.enu('category', ['image', 'sticker', 'video', 'audio', 'document']).notNullable();
+  table.string('category').notNullable();
   table.integer('size').notNullable();
   table.string('extension').notNullable();
   table.string('path');

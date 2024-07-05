@@ -3,7 +3,7 @@ const WorkflowUser = require('~/models/workflow_user.js');
 const { sendWhatsappMessage } = require('~/repositories/whatsapp_repository.js');
 
 module.exports = async function whatsappSendService(messageParams) {
-  if(!messageParams?.body) { return }
+  if(!messageParams?.body) { throw new Error('Message body is required') }
 
   const workflowUser = await WorkflowUser().findOne('id', messageParams.workflow_user_id);
   

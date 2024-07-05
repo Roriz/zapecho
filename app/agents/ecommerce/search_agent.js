@@ -86,10 +86,10 @@ module.exports = {
       PROMPT
     );
 
-    if (agentRunParams.actions.includes('#search')) {
+    if (agentRunParams.actions.list?.includes('#search')) {
       agentRunParams.is_complete = true
       agentRunParams.next_status = 'search'
-    } else if (agentRunParams.actions.includes('#see_cart')) {
+    } else if (agentRunParams.actions.list?.includes('#see_cart')) {
       agentRunParams.message_body = null
       agentRunParams.is_complete = true
       agentRunParams.next_status = 'cart'

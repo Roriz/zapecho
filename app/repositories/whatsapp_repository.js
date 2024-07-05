@@ -45,11 +45,11 @@ const downloadMedia = async (mediaId) => {
   );
 
   return {
-    originalName: mediaResponse.headers['content-disposition'].split('filename=')[1],
+    name: mediaResponse.headers['content-disposition'].split('filename=')[1],
     mimetype: mediaResponse.headers['content-type'],
     size: mediaResponse.headers['content-length'],
     extension: mediaResponse.headers['content-type'].split('/')[1],
-    fileBuffer: mediaResponse.data,
+    buffer: mediaResponse.data,
   };
 };
 

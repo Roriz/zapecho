@@ -41,9 +41,9 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
 
   await run.finalRun();
 
-  const actions = agentRunParams.message_body.match(/#\w+/g) || [];
+  const actions = agentRunParams.message_body.match(/#(\w|-)+/g) || [];
   if (actions.length) {
-    agentRunParams.actions = actions;
+    agentRunParams.actions = { list: actions};
     actions.forEach(action => {
       agentRunParams.message_body = agentRunParams.message_body.replaceAll(action, '').trim();
     })
@@ -52,13 +52,13 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
   return agentRunParams;
 }
 
-async function functionCall(messages, functionAndSchema, model = DEFAULT_MODEL) {
+async function functionCall(messages, functionAndSchema, options = { model, temperature }) {
   const response = await openaiSDK().chat.completions.create({
     messages,
     functions: [functionAndSchema],
     function_call: { name: functionAndSchema.name },
-    model,
-    temperature: 0.5
+    model: options.model ?? DEFAULT_MODEL,
+    temperature: options.temperature ?? 0.5,
   });
 
   return JSON.parse(response.choices[0].message.function_call.arguments);

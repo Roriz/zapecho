@@ -9,8 +9,6 @@ const getDb = require('./base_model.js');
  * @property {string} name - The name of the client.
  * @property {number} first_workflow_id - The ID of the first workflow.
  * @property {string} findable_message - A message that can be used to find the client.
- * @property {string} assistant_instructions - Instructions for the assistant.
- * @property {string} openai_assistant_id - The ID of the OpenAI assistant.
  *
  * @returns {Knex.QueryBuilder<Client, {}>}
  */

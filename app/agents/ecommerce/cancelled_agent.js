@@ -52,7 +52,7 @@ module.exports = {
       prompt
     );
 
-    if (agentRunParams.actions.includes('#search')) {
+    if (agentRunParams.actions.list?.includes('#search')) {
       agentRunParams.is_complete = true;
       agentRunParams.next_status = 'search';
     }

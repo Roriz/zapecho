@@ -28,15 +28,16 @@ const getDb = require('./base_model.js');
 const Messages = () => {
   const query = getDb('messages');
   
-  query.lastRelevantMessages = async (workflowUserId) => {
-    const [thirdToTast] = await getDb('messages').where(
+  query.lastRelevantMessages = async (workflowUserId, last = 3) => {
+    const [lastMessage] = await getDb('messages').where(
       'workflow_user_id',
       workflowUserId
-    ).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(3);
-
+    ).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(last);
+    
+    // TODO: use this instead of query
     const messages = query.where('workflow_user_id', workflowUserId).orderBy('created_at', 'asc');
-    if (thirdToTast) {
-      messages.whereRaw('id > ?', [thirdToTast.id])
+    if (lastMessage) {
+      messages.whereRaw('id > ?', [lastMessage.id])
     }
     return messages;
   };

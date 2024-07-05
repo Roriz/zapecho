@@ -8,7 +8,7 @@ const run_service = require('~/services/workflows/run_service.js');
 
   const workflow_users = await WorkflowUsers().whereNotNull('last_runned_failed_at');
   for (const workflow_user of workflow_users) {
-    console.info(`Reruning workflow user ${workflow_user.id}...`);
+    console.info(`Reruning workflow_user.id:${workflow_user.id}...`);
     await run_service(workflow_user);
   }
   

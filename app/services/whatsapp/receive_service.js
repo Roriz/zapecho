@@ -3,7 +3,7 @@ const Users = require('~/models/user.js');
 const Messages = require('~/models/message.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
 const Channels = require('~/models/channel.js');
-const fileStorageCreateService = require('../file_storages/create_service.js');
+const fileStorageCreateService = require('~/services/file_storages/create_service.js');
 const { downloadMedia } = require('~/repositories/whatsapp_repository.js');
 const workflowRunService = require('~/services/workflows/run_service.js');
 const Workflows = require('~/models/workflow.js');
@@ -26,11 +26,11 @@ const attachMedia = async (messageParams, messageId) => {
   if (!HAS_ATTACHMENT.includes(messageParams.type)) { return; }
 
   const mediaId = messageParams[messageParams.type].id;
-  const fileStorageParams = await downloadMedia(mediaId);
+  const file = await downloadMedia(mediaId);
 
   await fileStorageCreateService({
-    category: messageParams.type,
-    ...fileStorageParams,
+    category: 'media',
+    file,
   }, 'message', messageId);
 };
 

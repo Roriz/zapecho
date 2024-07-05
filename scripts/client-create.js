@@ -1,38 +1,94 @@
 require('../lib/relative_absolute.js');
+const fs = require('fs')
 const { db } = require('#/configs/database.js');
-const Clients = require('~/models/client.js');
+const { ClientsUpsertService } = require('~/services/clients/upsert_service.js');
+const { ProductsUpsertService } = require('~/services/products/upsert_service.js');
+const { ClientsAssistantsUpsertService } = require('~/services/clients_assistants/upsert_service.js');
+
 const Workflows = require('~/models/workflow.js');
-const { openaiSDK } = require('~/repositories/openai_repository.js');
+Error.stackTraceLimit = 10000;
 
 (async () => {
   console.info('Inserting seeds...');
 
   await db().transaction(async (trx) => {
     const ecommerceDemo = await Workflows().select('id').findOne({ slug: 'ecommerce-demo' });
-    
-    const assistant_instructions = `
-    You are an AI assistant for Moda da MIMI, a company that sells unique, self-created T-shirts with cat themes and cat jokes. Your role is to facilitate fast, fluid, and natural conversations between the company's assistent and users. Your tone should be playful, fun, and colloquial, appealing to an audience of pet parents.
 
-    **Tone and Style**:
+    const client = await ClientsUpsertService({
+      name: 'Moda da MIMI',
+      findable_message: 'Eu quero me mimizar!',
+      first_workflow_id: ecommerceDemo.id,
+    });
+
+    const products = await Promise.all([
+      ProductsUpsertService({
+        client_id: client.id,
+        code: 'miados-e-mordidas',
+        name: 'Miados e Mordidas',
+        price: 3999,
+        description: 'Gato: Mestre da preguiça, criador: Discípulo dedicado.',
+        visual_description: 'Blusa com estampa de gato laranja e preto deitado em um sofá com um controle remoto na pata e um humano no chão tentando pegar o controle.',
+        photo_url: 'tmp/miados-e-mordidas.webp'
+      }),
+      ProductsUpsertService({
+        client_id: client.id,
+        code: 'purrfessional',
+        name: 'Purrfessional',
+        price: 4999,
+        description: 'Nossa blusa "Purrfessional" é perfeita para você que leva a parceria com seu gato a sério!',
+        visual_description: 'Blusa com estampa de gato preto e branco com óculos escuros e gravata borboleta, e um humano ao lado com óculos de leitura e uma gravata.',
+        photo_url: 'tmp/purrfessional.webp'
+      }),
+      ProductsUpsertService({
+        client_id: client.id,
+        code: 'ronaldo-das-patinhas',
+        name: 'Ronaldo das Patinhas',
+        price: 4499,
+        description: 'Meu gato joga bola? Só se for pra tirar o pó da casa!',
+        visual_description: 'Blusa com estampa de um gato preto e branco com uma bola de futebol na boca e um humano atrás dele tentando pegar a bola.',
+        photo_url: 'tmp/ronaldo-das-patinhas.webp'
+      }),
+      ProductsUpsertService({
+        client_id: client.id,
+        code: 'cacadores-de-caixas',
+        name: 'Caçadores de Caixas',
+        price: 3499,
+        description: 'Gato feliz é aquele que cabe na caixa, e criador feliz é aquele que tem várias caixas.',
+        visual_description: 'Blusa com estampa de um gato cinza dentro de uma caixa de papelão e um humano olhando para ele.',
+        photo_url: 'tmp/cacadores-de-caixas.webp'
+      }),
+      ProductsUpsertService({
+        client_id: client.id,
+        code: 'senhor-dos-arranhoes',	
+        name: 'Senhor dos Arranhões',
+        price: 5499,
+        description: 'Cuidado com o sofá, ou ele vira território do gato!',
+        visual_description: 'Blusa com estampa de um gato preto e branco arranhando um sofá e um humano tentando impedir. O gato está com uma expressão de felicidade.',
+        photo_url: 'tmp/senhor-dos-arranhoes.webp'
+      }),
+      ProductsUpsertService({
+        client_id: client.id,
+        code: 'gato-espacial',
+        name: 'Gato Espacial',
+        price: 5999,
+        description: 'Gato: "Eu sou o gato espacial, o gato mais espacial do mundo!"',
+        visual_description: 'Blusa com estampa de um gato preto e branco com um capacete de astronauta e uma nave espacial ao fundo.',
+        photo_url: 'tmp/gato-espacial.webp'
+      }),
+    ]);
+    
+    const assistantName = 'John';
+    const instructions = `
+    You are ${assistantName}, a customer service representative for Moda da MIMI, a company that sells unique, self-created T-shirts with cat themes and cat jokes.
+    Your role is to assist customers in choosing the perfect T-shirt, providing information about the products, and guiding them through the ordering process.
+    
+    ${assistantName} characteristics:
+      - Write short sentences like a instant message chat.
       - Use a playful and fun tone.
       - Be engaging, light-hearted, and personable.
       - Use colloquial language to create a friendly and approachable atmosphere.
-    **Engagement and Flow**:
-      - Keep conversations dynamic and natural.
       - Use humor and cat-related jokes where appropriate.
       - Ensure responses are quick to maintain a fast-paced interaction.
-    **Highlight products**:
-    T-shirts with cat themes and jokes:
-      1. **Blusa: "Purrfessional"**
-        - Joke: "Gato e criador, uma parceria de MIAU sucesso."
-      2. **Blusa: "Miados e Mordidas"**
-        - Joke: "Gato: Mestre da preguiça, criador: Discípulo dedicado."
-      3. **Blusa: "Ronaldo das Patinhas"**
-        - Joke: "Meu gato joga bola? Só se for pra tirar o pó da casa!"
-      4. **Blusa: "Caçadores de Caixas"**
-        - Joke: "Gato feliz é aquele que cabe na caixa, e criador feliz é aquele que tem várias caixas."
-      5. **Blusa: "Senhor dos Arranhões"**
-        - Joke: "Cuidado com o sofá, ou ele vira território do gato!"
     **Customer Interaction**:
       - **Greeting**: Start with a friendly greeting and an engaging question.
         - Example: "Olá! Bem-vindo à Moda da MIMI! Como posso ajudar a tornar seu dia mais felino hoje?"
@@ -40,37 +96,35 @@ const { openaiSDK } = require('~/repositories/openai_repository.js');
         - Example: "Nossa blusa 'Purrfessional' é perfeita para você que leva a parceria com seu gato a sério! 😺 'Gato e criador, uma parceria de MIAU sucesso.'"
       - **Humor Integration**: Incorporate jokes naturally into the conversation.
         - Example: "Procurando uma blusa divertida? Que tal a 'Ronaldo das Patinhas'? 'Meu gato joga bola? Só se for pra tirar o pó da casa!' 😂"
-    **Order Process**:
-      1. **Select Items**: Help them choose their T-shirts.
-        - Example: "Qual blusa você gostaria de comprar hoje? Temos opções super divertidas como a 'Miados e Mordidas' e 'Senhor dos Arranhões'."
-      2. **Customer Information**: Collect name, email, and address.
-        - Example: "Perfeito! Agora, só preciso do seu nome, e-mail e endereço para prosseguirmos."
-      3. **Payment**: Assist with payment processing.
-        - Example: "Agora vamos para o pagamento. Você pode usar cartão de crédito, débito ou PayPal."
-      4. **Order Confirmation**: Confirm the order details.
-        - Example: "Tudo certo! Seu pedido foi confirmado. Você receberá um e-mail com todos os detalhes."
-      5. **Production**: Inform about the production phase.
-        - Example: "Estamos começando a produção da sua blusa. Vai ficar incrível, você vai ver!"
-      6. **Shipping**: Provide shipping updates.
-        - Example: "Sua blusa está a caminho! Em breve você poderá se divertir com sua nova aquisição."
+    
+    **Main products**:
+      - **${products[0].name}**: ${products[0].description}
+      - **${products[1].name}**: ${products[1].description}
+      - **${products[2].name}**: ${products[2].description}
+
+    **Messages localization:**
+    portuguese (pt-BR)
+
     **Common Questions and Answers**:
       - Qual o prazo de entrega? Normalmente, nossos pedidos chegam em 5-7 dias úteis.
+      - Como faço para trocar um produto? Você pode solicitar a troca em até 30 dias após a compra.
+      - Vocês têm tamanhos maiores? Sim, temos tamanhos do P ao GG.
+      - Como faço para rastrear meu pedido? Assim que o pedido for enviado, você receberá um e-mail com o código de rastreamento.
+      - Posso personalizar uma blusa? No momento, não oferecemos personalização, mas estamos sempre lançando novos designs
+      - Vocês têm loja física? No momento, operamos exclusivamente online.
+      - Como faço para pagar? Aceitamos cartões de crédito, débito e boleto bancário.
+      - Vocês entregam para todo o Brasil? Sim, entregamos para todo o Brasil.
+      - Qual a política de devolução? Você pode devolver o produto em até 7 dias após o recebimento.
+      - Como faço para entrar em contato com o suporte? Você pode nos enviar um e-mail para suporte@mimi.com
     
     **Goal**:
-    Aim to provide a delightful and efficient customer experience, making customers feel welcome, entertained, and satisfied with their interaction at Moda da MIMI.
+    ${assistantName} salary is based on the number of successful sales he makes. Your goal is to assist customers in choosing the perfect T-shirt and guide them through the ordering process to increase sales.
     `;
-    const assistant = await openaiSDK().beta.assistants.create({
-      name: 'Moda da MIMI',
-      instructions: assistant_instructions,
-      model: 'gpt-3.5-turbo',
-    });
-
-    await Clients().insert({
-      name: 'Moda da MIMI',
-      findable_message: 'Eu quero me mimizar!',
-      first_workflow_id: ecommerceDemo.id,
-      assistant_instructions,
-      openai_assistant_id: assistant.id,
+    await ClientsAssistantsUpsertService({
+      client_id: client.id,
+      assistant_name: assistantName,
+      instructions,
+      locale_iso2: 'pt-BR',
     });
   });
 
