@@ -1,18 +1,19 @@
-const getDb = require('./base_model.js');
+const envParams = require('#/configs/env_params.js');
+const { queryBuilder, BaseModel } = require('./base_model.js');
+const { generateToken } = require('~/services/auth/jwt.js')
 
-/**
- * @typedef {Object} StorageAttachments
- *
- * @property {number} id - The primary key of the table.
- * @property {Date} created_at - The timestamp when the record was created.
- * @property {Date} updated_at - The timestamp when the record was last updated.
- * @property {string} storable_type - The type of the file.
- * @property {string} storable_id - The id of the file.
- * @property {number} storage_blob_id - The id of the file storage.
- * @property {string} category - The category of the file.
- * 
- * @returns {Knex.QueryBuilder<StorageAttachment, {}>}
- */
-const StorageAttachments = () => getDb('storage_attachments');
+class StorageAttachment extends BaseModel {
+  static table_name = 'storage_attachments';
 
-module.exports = StorageAttachments;
+  storable_type;
+  storable_id;
+  storage_blob_id;
+  category;
+
+  generateUrl() {
+    return `${envParams().host_url}/v1/storage_blobs/${this.storage_blob_id}?t=${generateToken()}`;
+  }
+}
+const StorageAttachmentsQuery = () => queryBuilder(StorageAttachment);
+
+module.exports = StorageAttachmentsQuery;

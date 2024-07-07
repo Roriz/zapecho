@@ -7,14 +7,17 @@ module.exports = async function whatsappSendService(messageParams) {
 
   const workflowUser = await WorkflowUser().findOne('id', messageParams.workflow_user_id);
   
+  const messageType = messageParams.message_type || messageParams.image ? 'image' : 'text';
+
   const message = await Message().insert({
     sender_type: 'agent',
-    message_type: 'text',
+    message_type: messageType,
     user_id: workflowUser.user_id,
     client_id: workflowUser.client_id,
     workflow_user_id: messageParams.workflow_user_id,
     channel_id: messageParams.channel_id,
     body: messageParams.body,
+    image: messageParams.image,
     openai_id: messageParams.openai_message_id,
   });
 

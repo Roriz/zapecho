@@ -5,7 +5,7 @@ const Products = require('~/models/product.js');
 const StorageAttachments = require('~/models/storage_attachment.js');
 const AgentRuns = require('~/models/agent_run.js');
 const ClientsAssistants = require('~/models/clients_assistant.js');
-const { createAttachmentService } = require('~/services/storage/createAttachmentService.js');
+const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 
 const DATA_TO_EXTRACT = {

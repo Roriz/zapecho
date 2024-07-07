@@ -13,6 +13,10 @@ function shared() {
     openai_project_id: process.env.OPENAI_PROJECT_ID,
    
     whatsapp_permanent_token: process.env.WHATSAPP_PERMANENT_TOKEN,
+    
+    jwt_secret: process.env.JWT_SECRET,
+
+    host_url: 'https://local.zapecho.com',
   }
 }
 
@@ -21,6 +25,8 @@ function development() {
     ...shared(),
     database_name: 'zapecho_development',
     storageType: 'local',
+
+    host_url: 'https://local.zapecho.com',
   };
 }
 
@@ -28,9 +34,12 @@ function production() {
   return {
     ...shared(),
     database_name: 'zapecho_production',
+
     storageType: 's3',
     s3Bucket: 'zapecho-production',
     s3Region: 'us-east-1',
+
+    host_url: 'https://api.zapecho.com',
   };
 }
 

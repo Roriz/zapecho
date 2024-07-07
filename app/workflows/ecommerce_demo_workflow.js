@@ -1,5 +1,6 @@
 const Messages = require('~/models/message.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
+const StorageAttachments = require('~/models/storage_attachment.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
 const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
@@ -79,12 +80,27 @@ async function sendMessages(agentRun, lastMessage) {
     // const timeToSend = new Date().getTime() - nextMessageAt.getTime();
 
     // await wait(math.max(timeToSend, 0));
-    await sendService({
-      workflow_user_id: agentRun.workflow_user_id,
-      openai_message_id: agentRun.openai_message_id,
-      channel_id: lastMessage.channel_id,
-      body: bodyMessage.trim(),
-    })
+
+    const medias = StorageAttachments().where('storable_type', 'agent_run').where('storable_id', agentRun.id);
+    await Promise.all(medias.map((media) => {
+      return sendService({
+        workflow_user_id: agentRun.workflow_user_id,
+        openai_message_id: agentRun.openai_message_id,
+        channel_id: lastMessage.channel_id,
+        message_type: 'image',
+        image: { link: media.url }
+      })
+    }))
+
+    if (bodyMessage.trim()) {
+      await sendService({
+        workflow_user_id: agentRun.workflow_user_id,
+        openai_message_id: agentRun.openai_message_id,
+        channel_id: lastMessage.channel_id,
+        body: bodyMessage.trim(),
+        message_type: 'text',
+      })
+    }
 
     nextMessageAt = new Date();
     // nextMessageAt.setSeconds(nextMessageAt.getSeconds() + getRandomBetween(20, 50));

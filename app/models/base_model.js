@@ -1,7 +1,17 @@
 const { db } = require('#/configs/database.js');
 
-function getDb(tableName) {
-  const query = db()(tableName);
+function queryBuilder(Model) {
+  const knex = db();
+  const query = knex(Model.table_name);
+
+  const originalQuery = knex.client.query;
+  knex.client.query = async function zeQuery(...args) {
+    const result = await originalQuery.call(this, ...args);
+
+    result.response.rows = result.response.rows.map(row => new Model(row));
+    
+    return result;
+  }
 
   // Overwrite the insert method to include created_at and updated_at fields
   const originalInsert = query.insert;
@@ -33,4 +43,18 @@ function getDb(tableName) {
   return query;
 }
 
-module.exports = getDb;
+class BaseModel {
+  id;
+  created_at;
+  updated_at;
+  table_name;
+
+  constructor(data) {
+    Object.assign(this, data);
+  }
+}
+
+module.exports = {
+  queryBuilder,
+  BaseModel
+};

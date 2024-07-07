@@ -1,23 +1,19 @@
-const getDb = require('./base_model.js');
+const { queryBuilder, BaseModel } = require('./base_model.js');
 
-/**
- * @typedef {Object} AgentRun
- *
- * @property {number} id - The primary key of the table.
- * @property {Date} created_at - The timestamp when the record was created.
- * @property {Date} updated_at - The timestamp when the record was last updated.
- * @property {number} workflow_user_id - The foreign key to the workflow_users table.
- * @property {string} agent_slug - The foreign key to the agents table.
- * @property {boolean} finished - Whether the agent run has finished.
- * @property {string} message_body - The message body that the agent is responding to.
- * @property {string} openai_run_id - The OpenAI run ID.
- * @property {string} openai_message_id - The OpenAI message ID.
- * @property {number} total_tokens - The total number of tokens used in the run.
- *
- * @returns {Knex.QueryBuilder<AgentRun, {}>}
- */
-const AgentRuns = () => {
-  const query = getDb('agent_runs')
+class AgentRun extends BaseModel {
+  static table_name = 'agent_runs';
+
+  workflow_user_id;
+  agent_slug;
+  finished;
+  message_body;
+  openai_run_id;
+  openai_message_id;
+  total_tokens;
+}
+
+const AgentRunsQuery = () => {
+  const query = queryBuilder(AgentRun)
 
   const originalInsert = query.insert;
   query.insert = async function zeInsert(...args) {
@@ -32,4 +28,4 @@ const AgentRuns = () => {
   return query;
 };
 
-module.exports = AgentRuns;
+module.exports = AgentRunsQuery;
