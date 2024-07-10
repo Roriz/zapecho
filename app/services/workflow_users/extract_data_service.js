@@ -7,12 +7,7 @@ module.exports = async function extract_data_service(workflowUser, data_to_extra
   const extractedData = await dataExtractor(lastRelevantMessages, data_to_extract);
 
   if (extractedData) {
-    return WorkflowUser().updateOne(workflowUser, {
-      extracted_data: {
-        ...workflowUser.extracted_data,
-        ...extractedData
-      }
-    });
+    return workflowUser.addAnswerData(extractedData)
   } else {
     return workflowUser
   }

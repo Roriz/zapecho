@@ -4,7 +4,7 @@ const AgentRuns = require('~/models/agent_run.js');
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 
 const DATA_TO_EXTRACT = {
-  cart_for_product_code: {
+  add_to_cart_by_product_code: {
     type: 'string',
     description: 'The product code that the user want to add to the cart or empty not applicable',
   },
@@ -34,11 +34,11 @@ cor: branca
 """
 `
 
-AGENT_SLUG = 'ecommerce-product-detail';
+const AGENT_SLUG = 'ecommerce-product-detail';
 module.exports = {
   run: async function productDetailAgent(workflowUser) {
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.extracted_data.user_wants_to_see_other_products) { 
+    if (workflowUser.answers_data.user_wants_to_see_other_products) { 
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
@@ -48,7 +48,14 @@ module.exports = {
       });
     }
 
-    if (workflowUser.extracted_data.cart_for_product_code) {}
+    if (workflowUser.answers_data.add_to_cart_by_product_code) {
+      addCart({
+        user_id: workflowUser.user_id,
+        client_id: workflowUser.client_id,
+        product_code: workflowUser.answers_data.add_to_cart_by_product_code,
+        quantity: 1,
+      })
+    } 
     
     const client = await Clients().findOne('id', workflowUser.client_id);
     const agentRunParams = await threadRun(

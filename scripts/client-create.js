@@ -28,7 +28,10 @@ Error.stackTraceLimit = 10000;
         price: 3999,
         description: 'Gato: Mestre da preguiça, criador: Discípulo dedicado.',
         visual_description: 'Blusa com estampa de gato laranja e preto deitado em um sofá com um controle remoto na pata e um humano no chão tentando pegar o controle.',
-        photo_url: 'tmp/miados-e-mordidas.webp'
+        photo_url: 'tmp/miados-e-mordidas.webp',
+        metadata: {
+          tags: ['funny', 'sarcastic']
+        }
       }),
       ProductsUpsertService({
         client_id: client.id,
@@ -37,7 +40,10 @@ Error.stackTraceLimit = 10000;
         price: 4999,
         description: 'Nossa blusa "Purrfessional" é perfeita para você que leva a parceria com seu gato a sério!',
         visual_description: 'Blusa com estampa de gato preto e branco com óculos escuros e gravata borboleta, e um humano ao lado com óculos de leitura e uma gravata.',
-        photo_url: 'tmp/purrfessional.webp'
+        photo_url: 'tmp/purrfessional.webp',
+        metadata: {
+          tags: ['dark humor']
+        }
       }),
       ProductsUpsertService({
         client_id: client.id,
@@ -46,7 +52,10 @@ Error.stackTraceLimit = 10000;
         price: 4499,
         description: 'Meu gato joga bola? Só se for pra tirar o pó da casa!',
         visual_description: 'Blusa com estampa de um gato preto e branco com uma bola de futebol na boca e um humano atrás dele tentando pegar a bola.',
-        photo_url: 'tmp/ronaldo-das-patinhas.webp'
+        photo_url: 'tmp/ronaldo-das-patinhas.webp',
+        metadata: {
+          tags: ['funny']
+        }
       }),
       ProductsUpsertService({
         client_id: client.id,
@@ -55,7 +64,10 @@ Error.stackTraceLimit = 10000;
         price: 3499,
         description: 'Gato feliz é aquele que cabe na caixa, e criador feliz é aquele que tem várias caixas.',
         visual_description: 'Blusa com estampa de um gato cinza dentro de uma caixa de papelão e um humano olhando para ele.',
-        photo_url: 'tmp/cacadores-de-caixas.webp'
+        photo_url: 'tmp/cacadores-de-caixas.webp',
+        metadata: {
+          tags: ['funny']
+        }
       }),
       ProductsUpsertService({
         client_id: client.id,
@@ -64,7 +76,10 @@ Error.stackTraceLimit = 10000;
         price: 5499,
         description: 'Cuidado com o sofá, ou ele vira território do gato!',
         visual_description: 'Blusa com estampa de um gato preto e branco arranhando um sofá e um humano tentando impedir. O gato está com uma expressão de felicidade.',
-        photo_url: 'tmp/senhor-dos-arranhoes.webp'
+        photo_url: 'tmp/senhor-dos-arranhoes.webp',
+        metadata: {
+          tags: ['dark humor']
+        }
       }),
       ProductsUpsertService({
         client_id: client.id,
@@ -73,7 +88,10 @@ Error.stackTraceLimit = 10000;
         price: 5999,
         description: 'Gato: "Eu sou o gato espacial, o gato mais espacial do mundo!"',
         visual_description: 'Blusa com estampa de um gato preto e branco com um capacete de astronauta e uma nave espacial ao fundo.',
-        photo_url: 'tmp/gato-espacial.webp'
+        photo_url: 'tmp/gato-espacial.webp',
+        metadata: {
+          tags: ['funny']
+        }
       }),
     ]);
     

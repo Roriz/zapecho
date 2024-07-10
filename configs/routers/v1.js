@@ -1,7 +1,6 @@
+const { add } = require('lodash');
 const getRawBody = require('raw-body');
 const secureJson = require('secure-json-parse');
-
-const { whatsappVerify, whatsappWebhook } = require('~/controllers/v1/whatsapp-controller.js');
 
 function preparsingRawBody(request, reply, payload, done) {
   const applyLimit = request.routeOptions.bodyLimit;
@@ -30,15 +29,22 @@ function almostDefaultJsonParser(app) {
   };
 }
 
+function addRoute(app, method, url, handler) {
+  app.route({ method, url, ...handler });
+  app.route({ method, url: `${url}/`, ...handler });
+}
+
+const { whatsappVerify, whatsappWebhook } = require('~/controllers/v1/whatsapp-controller.js');
+const { showStorageBlob } = require('~/controllers/v1/storage-blob-controller.js');
+
 module.exports = function v1Routers(app, _, done) {
   // eslint-disable-next-line no-param-reassign
   app.addHook('onRoute', (routeOptions) => { routeOptions.preParsing = [preparsingRawBody]; });
   app.addContentTypeParser(['application/json'], { parseAs: 'buffer' }, almostDefaultJsonParser(app));
 
-  app.route({ method: 'GET', url: '/whatsapp', ...whatsappVerify });
-  app.route({ method: 'GET', url: '/whatsapp/', ...whatsappVerify });
-  app.route({ method: 'POST', url: '/whatsapp', ...whatsappWebhook });
-  app.route({ method: 'POST', url: '/whatsapp/', ...whatsappWebhook });
+  addRoute(app, 'GET', '/whatsapp', whatsappVerify);
+  addRoute(app, 'POST', '/whatsapp', whatsappWebhook);
+  addRoute(app, 'GET', '/storage_blobs/:id', showStorageBlob);
 
   done();
 };

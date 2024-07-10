@@ -37,5 +37,3 @@ const whatsappWebhook = {
 };
 
 module.exports = { whatsappVerify, whatsappWebhook };
-module.whatsappVerify = whatsappVerify;
-module.whatsappWebhook = whatsappWebhook;

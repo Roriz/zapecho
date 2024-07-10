@@ -1,12 +1,15 @@
 const { threadRun } = require('~/repositories/openai_repository.js');
 const Clients = require('~/models/client.js');
 const AgentRuns = require('~/models/agent_run.js');
+const Products = require('~/models/product.js');
+const Carts = require('~/models/cart.js');
+const { addCart } = require('~/services/carts/add_service.js');
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 
 const DATA_TO_EXTRACT = {
-  filter_by_theme: {
+  filter_by_tag: {
     type: 'string',
-    description: 'The theme to filter the products or empty not applicable',
+    description: 'The tag that the user want to filter the products or empty not applicable',
     enum: ['dark humor', 'funny', 'sarcastic'],
   },
   show_more_products: {
@@ -17,7 +20,7 @@ const DATA_TO_EXTRACT = {
     type: 'string',
     description: 'The product code that the user want to see the details or empty not applicable',
   },
-  cart_for_product_code: {
+  add_to_cart_by_product_code: {
     type: 'string',
     description: 'The product code that the user want to add to the cart or empty not applicable',
   },
@@ -32,25 +35,21 @@ act as customer service and help the user find the right product. You will be th
 Your goal is find the right product for the user, using the filters based on the user's preferences.
 
 filter available:
-- theme: A theme of the T-shirt, possible values: ["dark humor", "funny", "sarcastic"]
+- tags: funny, sarcastic, dark humor
 
 **Actions**
 In case the user wants to see more products, respond with #search.
 In case the user wants to see the cart, respond with #see_cart.
 
-Write #show-products to attach the products images on the message. The message can show up to 3 products. Products ready to show:
-"""
-1. Purrfessional - Gato e criador, uma parceria de MIAU sucesso.
-2. Miados e Mordidas - Gato: Mestre da preguiça, criador: Discípulo dedicado.
-3. Ronaldo das Patinhas: Meu gato joga bola? Só se for pra tirar o pó da casa!
+Write #show-products to attach the products images on the message. The message can show up to 3 products.
 """
 `
 
-AGENT_SLUG = 'ecommerce-search';
+const AGENT_SLUG = 'ecommerce-search';
 module.exports = {
   run: async function searchAgent(workflowUser) {
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.extracted_data.details_for_product_code) { 
+    if (workflowUser.answers_data.details_for_product_code) { 
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
@@ -60,7 +59,7 @@ module.exports = {
       });
     }
     
-    if (workflowUser.extracted_data.see_cart) { 
+    if (workflowUser.answers_data.see_cart) { 
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
@@ -69,21 +68,41 @@ module.exports = {
         is_complete: true
       });
     }
+    
+    const products = Products().where('client_id', workflowUser.client_id).limit(3)
+    if (workflowUser.answers_data.filter_by_tag) {
+      products.where('metadata:tags', 'array-contains', workflowUser.answers_data.filter_by_tag);
+    }
+    
+    let offset = workflowUser.answers_data.offset || 0;
+    if (workflowUser.answers_data.show_more_products) {
+      offset += 3;
+      products.offset(offset);
+    }
+    workflowUser.addAnswerData({ offset })
 
-    // next_page
-    // if (workflowUser.extracted_data.show_more_products) {} 
+    if (workflowUser.answers_data.add_to_cart_by_product_code) {
+      addCart({
+        user_id: workflowUser.user_id,
+        client_id: workflowUser.client_id,
+        product_code: workflowUser.answers_data.add_to_cart_by_product_code,
+        quantity: 1,
+      })
+    } 
     
-    // filter products
-    // if (workflowUser.extracted_data.filter_by_theme) {} 
+    const prompt_with_products = `
+    ${PROMPT}
     
-    // add product to the cart
-    // if (workflowUser.extracted_data.cart_for_product_code) {} 
-    
+    Products ready to show based on the filters:
+    Filters: ${workflowUser.answers_data.filter_by_tag ? JSON.stringify(workflowUser.answers_data.filter_by_tag) : 'no filter'}
+    Products: ${JSON.stringify(products)}
+    `
+
     const client = await Clients().findOne('id', workflowUser.client_id);
     const agentRunParams = await threadRun(
       workflowUser.openai_thread_id,
       client.openai_assistant_id,
-      PROMPT
+      prompt_with_products
     );
 
     if (agentRunParams.actions.list?.includes('#search')) {

@@ -9,6 +9,15 @@ class WorkflowUser extends BaseModel {
   finished_at;
   answers_data;
   openai_thread_id;
+
+  addAnswerData(data) {
+    return this.updateOne(this, {
+      answers_data: {
+        ...this.answers_data,
+        ...data
+      }
+    });
+  }
 }
 const WorkflowUsersQuery = () => queryBuilder(WorkflowUser);
 

@@ -55,7 +55,7 @@ async function extract_workflow_data(workflowUser) {
   const extractedData = await dataExtractor(lastRelevantMessages, DATA_TO_EXTRACT);
 
   if (extractedData) {
-    return WorkflowUsers().updateOne(workflowUser, { extracted_data: {...workflowUser.extracted_data, ...extractedData} });
+    return workflowUser.addAnswerData(extractedData)
   } else {
     return workflowUser
   }
@@ -116,10 +116,10 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   const lastUnrespondedMessages = await Messages().where('sender_type', 'user').lastRelevantMessages(workflowUser.id)
   
   workflowUser = await extract_workflow_data(workflowUser)
-  if (workflowUser.extracted_data?.the_subject_is_not_relevant) {
+  if (workflowUser.answers_data?.the_subject_is_not_relevant) {
     Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 
     return workflowUser;
-  } else if (workflowUser.extracted_data?.user_do_not_want_to_continue) {
+  } else if (workflowUser.answers_data?.user_do_not_want_to_continue) {
     workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: 'cancelled' });
   } 
   

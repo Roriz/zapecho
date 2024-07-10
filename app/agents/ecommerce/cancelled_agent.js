@@ -26,13 +26,13 @@ const FAREWELL_PROMPT = `
 act as senior customer experience and make the farewell message to the user.
 your goal is to make the user feel comfortable and welcome to come back later.
 `
-AGENT_SLUG = 'ecommerce-cancelled';
+const AGENT_SLUG = 'ecommerce-cancelled';
 module.exports = {
   run: async function cancelledAgent(workflowUser) {
     let prompt = LAST_TRY_PROMPT
     
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.extracted_data.assistant_already_says_goodbye) { 
+    if (workflowUser.answers_data.assistant_already_says_goodbye) { 
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
@@ -41,7 +41,7 @@ module.exports = {
       });
     }
 
-    if (workflowUser.extracted_data.has_gone_too_pushy) {
+    if (workflowUser.answers_data.has_gone_too_pushy) {
       prompt = FAREWELL_PROMPT
     }
     

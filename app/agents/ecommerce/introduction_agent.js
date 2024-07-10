@@ -35,7 +35,7 @@ If you thinking is fit for the message, you can attach stuff on the message. Ava
 In case the user shows interest in products or make a search, respond with #search.
 `
 
-AGENT_SLUG = 'ecommerce-introduction';
+const AGENT_SLUG = 'ecommerce-introduction';
 module.exports = {
   run: async function introductionAgent(workflowUser) {
     const client = await Clients().findOne('id', workflowUser.client_id);
@@ -51,7 +51,7 @@ module.exports = {
     }
 
     workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.extracted_data.user_has_tried_to_search) {
+    if (workflowUser.answers_data.user_has_tried_to_search) {
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
@@ -60,7 +60,7 @@ module.exports = {
         is_complete: true
       });
     }
-    if (workflowUser.extracted_data.see_a_product_or_like_to_see_the_products) {
+    if (workflowUser.answers_data.see_a_product_or_like_to_see_the_products) {
       return AgentRuns().insert({
         agent_slug: AGENT_SLUG,
         workflow_user_id: workflowUser.id,
