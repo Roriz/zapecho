@@ -1,10 +1,8 @@
-const { threadRun } = require('~/repositories/openai_repository.js');
-const Clients = require('~/models/client.js');
-const AgentRuns = require('~/models/agent_run.js');
 const Products = require('~/models/product.js');
-const Carts = require('~/models/cart.js');
+
+const { BaseAgent } = require('~/agents/base_agent.js');
 const { addCart } = require('~/services/carts/add_service.js');
-const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
+const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
 
 const DATA_TO_EXTRACT = {
   filter_by_tag: {
@@ -35,90 +33,79 @@ act as customer service and help the user find the right product. You will be th
 Your goal is find the right product for the user, using the filters based on the user's preferences.
 
 filter available:
-- tags: funny, sarcastic, dark humor
+- "tags" with the enum: [funny, sarcastic, dark humor]
 
 **Actions**
 In case the user wants to see more products, respond with #search.
 In case the user wants to see the cart, respond with #see_cart.
-
-Write #show-products to attach the products images on the message. The message can show up to 3 products.
-"""
+In case you want to show the products, respond with #show_products.
 `
 
-const AGENT_SLUG = 'ecommerce-search';
-module.exports = {
-  run: async function searchAgent(workflowUser) {
-    workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.answers_data.details_for_product_code) { 
-      return AgentRuns().insert({
-        agent_slug: AGENT_SLUG,
-        workflow_user_id: workflowUser.id,
-        workflow_user_status: workflowUser.status,
-        next_status: 'product_detail',
-        is_complete: true
-      });
+class EcommerceSearchAgent extends BaseAgent {
+  async run() {
+    await this.extractData(DATA_TO_EXTRACT);
+
+    if (this.answerData.details_for_product_code) { return this.goToStatus('product_detail'); }
+    if (this.answerData.see_cart) { return this.goToStatus('cart'); }
+
+    if (this.answerData.add_to_cart_by_product_code) {
+      this.#addCart();
     }
     
-    if (workflowUser.answers_data.see_cart) { 
-      return AgentRuns().insert({
-        agent_slug: AGENT_SLUG,
-        workflow_user_id: workflowUser.id,
-        workflow_user_status: workflowUser.status,
-        next_status: 'cart',
-        is_complete: true
-      });
+    const products = this.#getProducts();
+    await this.threadRun(this.#mountPrompt(products));
+
+    if (this.agentRunParams.actions.list?.includes('#see_cart')) {
+      return this.deleteRunAndGoToStatus('cart');
+    }
+
+    const agentRun = await this.createAgentRun(this.agentRunParams);
+    if (this.agentRunParams.actions.list?.includes('#show_products')) {
+      await Promise.all(products.map(async product => createAttachmentService({
+        category: 'media',
+        storable_type: 'agent_run',
+        storable_id: agentRun.id,
+        storage_blob_id: (await product.photoAttachment()).storage_blob_id
+      })))
+    }
+
+    return agentRun;
+  }
+
+  #addCart() {
+    return addCart({
+      user_id: this.workflowUser.user_id,
+      client_id: this.workflowUser.client_id,
+      product_code: this.answerData.add_to_cart_by_product_code,
+      quantity: 1,
+    })
+  }
+
+  #mountPrompt(products) {
+    return `
+    ${PROMPT}
+    
+    Products ready to show based on the filters:
+    Filters: ${this.answerData.filter_by_tag ? JSON.stringify(this.answerData.filter_by_tag) : 'no filter'}
+    Products: ${JSON.stringify(products)}
+    `
+  }
+
+  async #getProducts() {
+    const products = Products().where('client_id', this.workflowUser.client_id).limit(3)
+    if (this.answerData.filter_by_tag) {
+      products.where('metadata:tags', 'array-contains', this.answerData.filter_by_tag);
     }
     
-    const products = Products().where('client_id', workflowUser.client_id).limit(3)
-    if (workflowUser.answers_data.filter_by_tag) {
-      products.where('metadata:tags', 'array-contains', workflowUser.answers_data.filter_by_tag);
-    }
-    
-    let offset = workflowUser.answers_data.offset || 0;
-    if (workflowUser.answers_data.show_more_products) {
+    let offset = this.answerData.offset || 0;
+    if (this.answerData.show_more_products) {
       offset += 3;
       products.offset(offset);
     }
     workflowUser.addAnswerData({ offset })
 
-    if (workflowUser.answers_data.add_to_cart_by_product_code) {
-      addCart({
-        user_id: workflowUser.user_id,
-        client_id: workflowUser.client_id,
-        product_code: workflowUser.answers_data.add_to_cart_by_product_code,
-        quantity: 1,
-      })
-    } 
-    
-    const prompt_with_products = `
-    ${PROMPT}
-    
-    Products ready to show based on the filters:
-    Filters: ${workflowUser.answers_data.filter_by_tag ? JSON.stringify(workflowUser.answers_data.filter_by_tag) : 'no filter'}
-    Products: ${JSON.stringify(products)}
-    `
-
-    const client = await Clients().findOne('id', workflowUser.client_id);
-    const agentRunParams = await threadRun(
-      workflowUser.openai_thread_id,
-      client.openai_assistant_id,
-      prompt_with_products
-    );
-
-    if (agentRunParams.actions.list?.includes('#search')) {
-      agentRunParams.is_complete = true
-      agentRunParams.next_status = 'search'
-    } else if (agentRunParams.actions.list?.includes('#see_cart')) {
-      agentRunParams.message_body = null
-      agentRunParams.is_complete = true
-      agentRunParams.next_status = 'cart'
-    }
-
-    return  AgentRuns().insert({
-      ...agentRunParams,
-      agent_slug: AGENT_SLUG,
-      workflow_user_id: workflowUser.id,
-      workflow_user_status: workflowUser.status,
-    });
+    return products;
   }
 }
+
+module.exports = { EcommerceSearchAgent }

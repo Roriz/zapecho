@@ -2,23 +2,6 @@ const { queryBuilder, BaseModel } = require('./base_model.js');
 
 class Message extends BaseModel {
   static table_name = 'messages';
-
-  user_id;
-  client_id;
-  workflow_user_id;
-  body;
-  sender_type;
-  message_type;
-  template_name;
-  template_locale;
-  template_payload;
-  user_reaction;
-  user_reacted_at;
-  user_read_at;
-  client_read_at;
-  whatsapp_id;
-  whatsapp_created_at;
-  openai_id;
 }
 
 const MessagesQuery = () => {

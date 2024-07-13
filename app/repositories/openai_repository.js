@@ -52,6 +52,10 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
   return agentRunParams;
 }
 
+function deleteThreadMessage(thread_id, message_id) {
+  return openaiSDK().beta.threads.messages.del(thread_id, message_id);
+}
+
 async function functionCall(messages, functionAndSchema, options = { model, temperature }) {
   const response = await openaiSDK().chat.completions.create({
     messages,
@@ -69,5 +73,6 @@ module.exports = {
   default: openaiSDK,
   openaiSDK,
   threadRun,
+  deleteThreadMessage,
   functionCall
 }

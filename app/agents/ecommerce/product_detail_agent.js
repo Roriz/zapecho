@@ -1,8 +1,3 @@
-const { threadRun } = require('~/repositories/openai_repository.js');
-const Clients = require('~/models/client.js');
-const AgentRuns = require('~/models/agent_run.js');
-const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
-
 const DATA_TO_EXTRACT = {
   add_to_cart_by_product_code: {
     type: 'string',
@@ -34,41 +29,30 @@ cor: branca
 """
 `
 
-const AGENT_SLUG = 'ecommerce-product-detail';
-module.exports = {
-  run: async function productDetailAgent(workflowUser) {
-    workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.answers_data.user_wants_to_see_other_products) { 
-      return AgentRuns().insert({
-        agent_slug: AGENT_SLUG,
-        workflow_user_id: workflowUser.id,
-        workflow_user_status: workflowUser.status,
-        next_status: 'search',
-        is_complete: true
-      });
+class EcommerceProductDetailAgent extends BaseAgent {
+  async run() {
+    await this.extractData(DATA_TO_EXTRACT);
+
+    if (this.answerData.user_wants_to_see_other_products) { return this.goToStatus('search'); }
+
+    if (this.answerData.add_to_cart_by_product_code) {
+      this.#addCart();
     }
-
-    if (workflowUser.answers_data.add_to_cart_by_product_code) {
-      addCart({
-        user_id: workflowUser.user_id,
-        client_id: workflowUser.client_id,
-        product_code: workflowUser.answers_data.add_to_cart_by_product_code,
-        quantity: 1,
-      })
-    } 
     
-    const client = await Clients().findOne('id', workflowUser.client_id);
-    const agentRunParams = await threadRun(
-      workflowUser.openai_thread_id,
-      client.openai_assistant_id,
-      PROMPT
-    );
+    await this.threadRun(PROMPT);
 
-    return  AgentRuns().insert({
-      ...agentRunParams,
-      agent_slug: AGENT_SLUG,
-      workflow_user_id: workflowUser.id,
-      workflow_user_status: workflowUser.status,
-    });
+
+    return this.createAgentRun(this.agentRunParams);
+  }
+
+  #addCart() {
+    return addCart({
+      user_id: this.workflowUser.user_id,
+      client_id: this.workflowUser.client_id,
+      product_code: this.answerData.add_to_cart_by_product_code,
+      quantity: 1,
+    })
   }
 }
+
+module.exports = { EcommerceProductDetailAgent }

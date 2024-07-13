@@ -44,10 +44,7 @@ function queryBuilder(Model) {
 }
 
 class BaseModel {
-  id;
-  created_at;
-  updated_at;
-  table_name;
+  static table_name;
 
   constructor(data) {
     Object.assign(this, data);

@@ -1,8 +1,3 @@
-const { threadRun } = require('~/repositories/openai_repository.js');
-const Clients = require('~/models/client.js');
-const AgentRuns = require('~/models/agent_run.js');
-const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
-
 const DATA_TO_EXTRACT = {
   has_gone_too_pushy: {
     type: 'boolean',
@@ -26,42 +21,22 @@ const FAREWELL_PROMPT = `
 act as senior customer experience and make the farewell message to the user.
 your goal is to make the user feel comfortable and welcome to come back later.
 `
-const AGENT_SLUG = 'ecommerce-cancelled';
-module.exports = {
-  run: async function cancelledAgent(workflowUser) {
-    let prompt = LAST_TRY_PROMPT
+
+class EcommerceCancelledAgent extends BaseAgent {
+  async run() {
+    await this.extractData(DATA_TO_EXTRACT);
+
+    if (this.answerData.assistant_already_says_goodbye) { return this.goToStatus(); }
     
-    workflowUser = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-    if (workflowUser.answers_data.assistant_already_says_goodbye) { 
-      return AgentRuns().insert({
-        agent_slug: AGENT_SLUG,
-        workflow_user_id: workflowUser.id,
-        workflow_user_status: workflowUser.status,
-        is_complete: true
-      });
+    const prompt = this.answerData.has_gone_too_pushy ? FAREWELL_PROMPT : LAST_TRY_PROMPT
+    await this.threadRun(prompt);
+
+    if (this.agentRunParams.actions.list?.includes('#search')) {
+      return this.deleteRunAndGoToStatus('cart');
     }
 
-    if (workflowUser.answers_data.has_gone_too_pushy) {
-      prompt = FAREWELL_PROMPT
-    }
-    
-    const client = await Clients().findOne('id', workflowUser.client_id);
-    const agentRunParams = await threadRun(
-      workflowUser.openai_thread_id,
-      client.openai_assistant_id,
-      prompt
-    );
-
-    if (agentRunParams.actions.list?.includes('#search')) {
-      agentRunParams.is_complete = true;
-      agentRunParams.next_status = 'search';
-    }
-
-    return  AgentRuns().insert({
-      ...agentRunParams,
-      agent_slug: AGENT_SLUG,
-      workflow_user_id: workflowUser.id,
-      workflow_user_status: workflowUser.status,
-    });
+    return this.createAgentRun(this.agentRunParams);
   }
 }
+
+module.exports = { EcommerceCancelledAgent }

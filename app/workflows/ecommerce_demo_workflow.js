@@ -6,15 +6,20 @@ const { dataExtractor } = require('~/repositories/openai/data_extractor_reposito
 const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
 const sendService = require('~/services/whatsapp/send_service.js');
 
+const { EcommerceIntroductionAgent } = require('~/agents/ecommerce/introduction_agent.js')
+const { EcommerceSearchAgent } = require('~/agents/ecommerce/search_agent.js')
+const { EcommerceProductDetailAgent } = require('~/agents/ecommerce/product_detail_agent.js')
+const { EcommerceCancelledAgent } = require('~/agents/ecommerce/cancelled_agent.js')
+
 const STATUS_TO_AGENT = {
-  'introduction': () => require('~/agents/ecommerce/introduction_agent.js'),
-  'search': () => require('~/agents/ecommerce/search_agent.js'),
-  'product_detail': () => require('~/agents/ecommerce/product_detail_agent.js'),
+  'introduction': EcommerceIntroductionAgent,
+  'search': EcommerceSearchAgent,
+  'product_detail': EcommerceProductDetailAgent,
   // 'cart': () => require('~/agents/ecommerce/cart_agent.js'),
   // 'signup': () => require('~/agents/ecommerce/signup_agent.js'),
   // 'payment': () => require('~/agents/ecommerce/payment_agent.js'),
   // 'order_confirmation': () => require('~/agents/ecommerce/order_confirmation_agent.js'),
-  'cancelled': () => require('~/agents/ecommerce/cancelled_agent.js'),
+  'cancelled': EcommerceCancelledAgent,
 }
 
 const FIRST_STATUS = 'introduction';
@@ -127,8 +132,11 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
     workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: FIRST_STATUS });
   }
 
-  const agent = STATUS_TO_AGENT[workflowUser.status]()
-  const agentRun = await agent.run(workflowUser);
+  const Agent = STATUS_TO_AGENT[workflowUser.status]
+  if (!Agent) {
+    throw new Error(`Agent not found for status ${workflowUser.status}`);
+  }
+  const agentRun = await new Agent(workflowUser).run();
   
   // TODO: validate if need to send a message
   sendMessages(agentRun, lastUnrespondedMessages.at(-1));

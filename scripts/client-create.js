@@ -1,12 +1,10 @@
 require('../lib/relative_absolute.js');
-const fs = require('fs')
 const { db } = require('#/configs/database.js');
 const { ClientsUpsertService } = require('~/services/clients/upsert_service.js');
 const { ProductsUpsertService } = require('~/services/products/upsert_service.js');
 const { ClientsAssistantsUpsertService } = require('~/services/clients_assistants/upsert_service.js');
 
 const Workflows = require('~/models/workflow.js');
-Error.stackTraceLimit = 10000;
 
 (async () => {
   console.info('Inserting seeds...');
@@ -150,4 +148,4 @@ Error.stackTraceLimit = 10000;
 
   console.info('Seeds inserted.');
   process.exit(0);
-})()
+})();

@@ -2,12 +2,6 @@ const { queryBuilder, BaseModel } = require('./base_model.js');
 
 class Cart extends BaseModel {
   static table_name = 'carts';
-
-  user_id;
-  product_id;
-  quantity;
-  price;
-  total_price;
 }
 
 const CartsQuery = () => queryBuilder(Cart);

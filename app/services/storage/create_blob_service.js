@@ -30,7 +30,8 @@ async function CreateBlobService(blobParams) {
   const storageBlob = await StorageBlobs().insert(blob)
   const path = `blobs/${storageBlob.id}.${blob.extension}`;
   await blobPersist(buffer, path);
-  return StorageBlobs().updateOne(storageBlob, { path: blob.path });
+
+  return StorageBlobs().updateOne(storageBlob, { path });
 }
 
 module.exports = { CreateBlobService };

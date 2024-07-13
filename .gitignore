@@ -62,3 +62,4 @@ tmp
 attachs
 
 .env.*
+blobs/*.webp

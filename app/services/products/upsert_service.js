@@ -5,7 +5,10 @@ const { createAttachmentService } = require('~/services/storage/create_attachmen
 async function ProductsUpsertService(params) {
   let product = await Products().findOne({ code: params.code });
 
-  const updatableFields = pick(params, ['name', 'price', 'client_id', 'description', 'visual_description']);
+  const updatableFields = pick(
+    params,
+    ['name', 'price', 'client_id', 'description', 'visual_description', 'metadata']
+  );
 
   if (product) {
     product = await Products().updateOne(product, updatableFields);

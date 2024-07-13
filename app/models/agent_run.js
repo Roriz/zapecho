@@ -2,14 +2,6 @@ const { queryBuilder, BaseModel } = require('./base_model.js');
 
 class AgentRun extends BaseModel {
   static table_name = 'agent_runs';
-
-  workflow_user_id;
-  agent_slug;
-  finished;
-  message_body;
-  openai_run_id;
-  openai_message_id;
-  total_tokens;
 }
 
 const AgentRunsQuery = () => {
