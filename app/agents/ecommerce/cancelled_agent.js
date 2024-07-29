@@ -1,3 +1,5 @@
+const { BaseAgent } = require('~/agents/base_agent.js');
+
 const DATA_TO_EXTRACT = {
   has_gone_too_pushy: {
     type: 'boolean',

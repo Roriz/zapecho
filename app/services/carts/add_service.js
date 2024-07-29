@@ -2,10 +2,9 @@ const Carts = require('~/models/cart.js');
 const Products = require('~/models/product.js');
 
 const findProduct = async (params) => {
-  if (params.product_code) {
-    return Products().where('code', params.product_code).first();
-  }
-  return Products().where('id', params.product_id).first();
+  return Products().where('code', params.product_code).first() ||
+    Products().where('id', params.product_id).first() ||
+    Products().where('name', params.product_code).first();
 }
 
 async function addCart(params) {

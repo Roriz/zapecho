@@ -11,9 +11,9 @@ exports.up = function(knex) {
     table.string('workflow_user_status').notNullable();
     table.string('agent_slug').notNullable();
     table.text('message_body');
-    table.string('openai_run_id').notNullable();
-    table.string('openai_message_id').notNullable();
-    table.integer('total_tokens').notNullable();
+    table.string('openai_run_id');
+    table.string('openai_message_id');
+    table.integer('total_tokens');
     table.boolean('is_complete').defaultTo(false).notNullable();
 
     table.foreign('workflow_user_id').references('workflow_users.id');

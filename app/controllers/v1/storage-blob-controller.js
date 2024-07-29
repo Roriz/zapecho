@@ -15,7 +15,7 @@ const showStorageBlob = {
     }
 
     const bufferFile = fs.readFileSync(storageBlob.path)
-    res.type(storageBlob.mimetype).send(bufferFile)
+    reply.type(storageBlob.mimetype).send(bufferFile)
   },
 };
 

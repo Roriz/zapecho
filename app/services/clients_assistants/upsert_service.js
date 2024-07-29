@@ -3,7 +3,7 @@ const Clients = require('~/models/client.js');
 const ClientsAssistants = require('~/models/clients_assistant.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 
-const DEFAULT_MODEL = 'gpt-3.5-turbo';
+const DEFAULT_MODEL = 'gpt-4o-mini';
 const DEFAULT_LOCALE = 'en';
 const DEFAULT_CATEGORY = 'default';
 

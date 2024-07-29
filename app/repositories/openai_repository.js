@@ -1,7 +1,7 @@
 const OpenAI = require('openai');
 const envParams = require('#/configs/env_params.js');
 
-const DEFAULT_MODEL = 'gpt-3.5-turbo'
+const DEFAULT_MODEL = 'gpt-4o-mini'
 let openai;
 
 function openaiSDK() {
@@ -15,7 +15,7 @@ function openaiSDK() {
   return openai
 }
 
-async function threadRun(thread_id, assistant_id, PROMPT) {
+async function threadRun(thread_id, assistant_id, prompt) {
   const agentRunParams = {
     message_body: undefined,
     openai_run_id: undefined,
@@ -24,10 +24,11 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
     actions: [],
   }
 
+  console.log('[openai][threadRun] thread_id:', thread_id, 'assistant_id:', assistant_id, 'prompt:', prompt)
   const run = openaiSDK().beta.threads.runs.stream(
     thread_id, {
     assistant_id,
-    additional_instructions: PROMPT,
+    additional_instructions: prompt,
     stream: true,
   }).on('event', ({event, data}) => {
     if (event === 'thread.run.step.completed') {
@@ -40,8 +41,8 @@ async function threadRun(thread_id, assistant_id, PROMPT) {
   })
 
   await run.finalRun();
-
-  const actions = agentRunParams.message_body.match(/#(\w|-)+/g) || [];
+  
+  const actions = agentRunParams.message_body?.match(/#(\w|-)+/g) || [];
   if (actions.length) {
     agentRunParams.actions = { list: actions};
     actions.forEach(action => {
@@ -60,12 +61,27 @@ async function functionCall(messages, functionAndSchema, options = { model, temp
   const response = await openaiSDK().chat.completions.create({
     messages,
     functions: [functionAndSchema],
-    function_call: { name: functionAndSchema.name },
+    tools: [{ type: 'function', function: functionAndSchema }],
+    tool_choice: {
+      type: 'function',
+      function: { name: functionAndSchema.name }
+    },
     model: options.model ?? DEFAULT_MODEL,
-    temperature: options.temperature ?? 0.5,
+    temperature: options.temperature ?? 0.2,
   });
 
-  return JSON.parse(response.choices[0].message.function_call.arguments);
+  return JSON.parse(response.choices[0].message.tool_calls[0].function.arguments);
+}
+
+async function completionCall(messages, options = {}) {
+  const response = await openaiSDK().chat.completions.create({
+    messages,
+    model: options.model ?? DEFAULT_MODEL,
+    temperature: options.temperature ?? 0.2,
+    response_format: { type: 'json_object' },
+  });
+
+  return JSON.parse(response.choices[0].message.content);
 }
 
 
@@ -74,5 +90,6 @@ module.exports = {
   openaiSDK,
   threadRun,
   deleteThreadMessage,
+  completionCall,
   functionCall
 }

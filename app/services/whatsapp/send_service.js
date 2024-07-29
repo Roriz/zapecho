@@ -1,25 +1,30 @@
 const Message = require('~/models/message.js');
 const WorkflowUser = require('~/models/workflow_user.js');
+
 const { sendWhatsappMessage } = require('~/repositories/whatsapp_repository.js');
+const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
 
 module.exports = async function whatsappSendService(messageParams) {
-  if(!messageParams?.body) { throw new Error('Message body is required') }
-
   const workflowUser = await WorkflowUser().findOne('id', messageParams.workflow_user_id);
   
-  const messageType = messageParams.message_type || messageParams.image ? 'image' : 'text';
-
   const message = await Message().insert({
     sender_type: 'agent',
-    message_type: messageType,
     user_id: workflowUser.user_id,
     client_id: workflowUser.client_id,
+    message_type: messageParams.message_type,
     workflow_user_id: messageParams.workflow_user_id,
     channel_id: messageParams.channel_id,
     body: messageParams.body,
-    image: messageParams.image,
     openai_id: messageParams.openai_message_id,
   });
+  if (messageParams.image) {
+    await createAttachmentService({
+      category: 'image',
+      storable_type: 'message',
+      storable_id: message.id,
+      storage_blob_id: messageParams.image.storage_blob_id
+    })
+  }
 
   const response = await sendWhatsappMessage(message)
 

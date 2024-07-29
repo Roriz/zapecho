@@ -7,9 +7,20 @@ const configs = {
   migrations: {
     directory: '../migrations',
   },
+  pool: {
+    min: 2,
+    max: 10,
+  },
 };
+let knexInstance;
 
-const db = () => knex(configs);
+const db = () => {
+  if (!knexInstance) {
+    knexInstance = knex(configs);
+  }
+
+  return knexInstance
+};
 
 module.exports = configs;
 module.exports.db = db;

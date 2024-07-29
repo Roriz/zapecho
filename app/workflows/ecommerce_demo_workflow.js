@@ -8,13 +8,11 @@ const sendService = require('~/services/whatsapp/send_service.js');
 
 const { EcommerceIntroductionAgent } = require('~/agents/ecommerce/introduction_agent.js')
 const { EcommerceSearchAgent } = require('~/agents/ecommerce/search_agent.js')
-const { EcommerceProductDetailAgent } = require('~/agents/ecommerce/product_detail_agent.js')
 const { EcommerceCancelledAgent } = require('~/agents/ecommerce/cancelled_agent.js')
 
 const STATUS_TO_AGENT = {
   'introduction': EcommerceIntroductionAgent,
   'search': EcommerceSearchAgent,
-  'product_detail': EcommerceProductDetailAgent,
   // 'cart': () => require('~/agents/ecommerce/cart_agent.js'),
   // 'signup': () => require('~/agents/ecommerce/signup_agent.js'),
   // 'payment': () => require('~/agents/ecommerce/payment_agent.js'),
@@ -86,14 +84,14 @@ async function sendMessages(agentRun, lastMessage) {
 
     // await wait(math.max(timeToSend, 0));
 
-    const medias = StorageAttachments().where('storable_type', 'agent_run').where('storable_id', agentRun.id);
-    await Promise.all(medias.map((media) => {
+    const attachments = await StorageAttachments().where('storable_type', 'agent_run').where('storable_id', agentRun.id);
+    await Promise.all(attachments.map((attachment) => {
       return sendService({
         workflow_user_id: agentRun.workflow_user_id,
         openai_message_id: agentRun.openai_message_id,
         channel_id: lastMessage.channel_id,
         message_type: 'image',
-        image: { link: media.url }
+        image: attachment
       })
     }))
 
@@ -113,13 +111,15 @@ async function sendMessages(agentRun, lastMessage) {
 }
 
 module.exports = async function ecommerceDemoWorkflow(workflowUser) {
+  console.info('[workflows/ecommerce_demo_workflow] starting');
   if (!workflowUser.openai_thread_id) {
     workflowUser = await createThread(workflowUser)
   }
 
   await addMessagesToThread(workflowUser)
+  console.info('[workflows/ecommerce_demo_workflow] added messages to thread');
+
   const lastUnrespondedMessages = await Messages().where('sender_type', 'user').lastRelevantMessages(workflowUser.id)
-  
   workflowUser = await extract_workflow_data(workflowUser)
   if (workflowUser.answers_data?.the_subject_is_not_relevant) {
     Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 
@@ -131,15 +131,19 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   if (!workflowUser.status) {
     workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: FIRST_STATUS });
   }
+  console.info('[workflows/ecommerce_demo_workflow] data extracted');
 
   const Agent = STATUS_TO_AGENT[workflowUser.status]
   if (!Agent) {
     throw new Error(`Agent not found for status ${workflowUser.status}`);
   }
+
   const agentRun = await new Agent(workflowUser).run();
+  console.info('[workflows/ecommerce_demo_workflow] agent runned');
   
   // TODO: validate if need to send a message
-  sendMessages(agentRun, lastUnrespondedMessages.at(-1));
+  await sendMessages(agentRun, lastUnrespondedMessages.at(-1));
+  console.info('[workflows/ecommerce_demo_workflow] messages sent');
   
   if (agentRun.is_complete) {
     workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: agentRun.next_status });

@@ -1,10 +1,20 @@
 const { db } = require('#/configs/database.js');
+
+const Messages = require('~/models/message.js');
 const Workflows = require('~/models/workflow.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
 
 const WORKFLOW_TO_RUNNER = {
   'router-client': () => require('~/workflows/router_client_workflow.js'),
   'ecommerce-demo': () => require('~/workflows/ecommerce_demo_workflow.js'),
+}
+
+async function migrateMessages(oldWorkflowUser, newWorkflowUser) {
+  const messages = await Messages().where('sender_type', 'user').lastRelevantMessages(oldWorkflowUser.id, 1);
+
+  return Promise.all(
+    messages.map(message => Messages().updateOne(message, { workflow_user_id: newWorkflowUser.id }))
+  );
 }
 
 async function runWorkflow(workflowUser) {
@@ -30,6 +40,7 @@ async function runWorkflow(workflowUser) {
       });
 
       if (runnerWorkflowUser.id !== workflowUser.id) {
+        await migrateMessages(workflowUser, runnerWorkflowUser);
         await runWorkflow(runnerWorkflowUser)
       }
     })

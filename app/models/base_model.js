@@ -23,17 +23,17 @@ function queryBuilder(Model) {
       ...args[0],
     }, ...args.slice(1))();
 
-    return result[0];
+    return new Model(result[0]);
   };
 
   query.updateOne = async function updateOne(modelInstance, paramsToUpdate) {
     await this.where('id', modelInstance.id).update(paramsToUpdate);
     
-    return {
+    return new Model({
       ...modelInstance,
       ...paramsToUpdate,
       updated_at: new Date(),
-    };
+    });
   };
 
   query.findOne = async function findOne(...args) {

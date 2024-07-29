@@ -7,16 +7,15 @@ class Message extends BaseModel {
 const MessagesQuery = () => {
   const query = queryBuilder(Message);
   
-  query.lastRelevantMessages = async (workflowUserId, last = 3) => {
+  query.lastRelevantMessages = async function lastRelevantMessages(workflowUserId, last = 3) {
     const [lastMessage] = await queryBuilder(Message).where(
       'workflow_user_id',
       workflowUserId
     ).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(last);
     
-    // TODO: use this instead of query
-    const messages = query.where('workflow_user_id', workflowUserId).orderBy('created_at', 'asc');
+    const messages = this.where('workflow_user_id', workflowUserId).orderBy('created_at', 'asc');
     if (lastMessage) {
-      messages.whereRaw('id > ?', [lastMessage.id])
+      messages.whereRaw('id >= ?', [lastMessage.id])
     }
     return messages;
   };

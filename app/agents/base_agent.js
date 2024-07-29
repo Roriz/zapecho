@@ -20,10 +20,10 @@ class BaseAgent {
   get answerData() {
     return this.workflowUser.answers_data;
   }
-  get client() {
+  client() {
     return Clients().findOne('id', this.workflowUser.client_id);
   }
-  get assistant() {
+  assistant() {
     return ClientsAssistants().findOne('client_id', this.workflowUser.client_id);
   }
 
@@ -37,7 +37,7 @@ class BaseAgent {
   async threadRun(prompt) {
     this.agentRunParams = await threadRun(
       this.workflowUser.openai_thread_id,
-      this.client.openai_assistant_id,
+      (await this.assistant()).openai_id,
       prompt
     );
 

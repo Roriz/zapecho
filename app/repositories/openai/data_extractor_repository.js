@@ -1,4 +1,4 @@
-const { functionCall } = require('~/repositories/openai_repository');
+const { completionCall } = require('~/repositories/openai_repository');
 
 const SENDER_TYPE_TO_ROLE = {
   'user': 'user',
@@ -22,12 +22,12 @@ module.exports = {
       {
         role: 'system',
         content: `
-        Act as a user persistence function and extract the following fields from the last relevant messages:
-        You should extract the following fields:
-        ${Object.keys(fieldToExtract).map(f => `- ${f}: ${fieldToExtract[f].description}`).join('\n')}
+        Act as a data extractor function, that will extract structured and typed data from the user messages.
+        You reponse a valid json based on the data schema:
+        ${JSON.stringify(fieldsWithExplicit, null, 2)}
         `
       },
-      lastRelevantMessages.map(m => {
+      ...lastRelevantMessages.map(m => {
         const role = SENDER_TYPE_TO_ROLE[m.sender_type]
 
         if (!role) return
@@ -39,16 +39,7 @@ module.exports = {
       }).filter(m => m)
     ]
 
-    const response = await functionCall(messages, {
-      name: 'user_persistence_function',
-      description: 'Extract structured and typed data from the user messages and call the user persistence function.',
-      parameters: {
-        type: 'object',
-        properties: fieldsWithExplicit
-      }
-    },
-    { temperature: 0 }
-  );
+    const response = await completionCall(messages);
 
     const cleanedResponse = {}
     Object.keys(response).forEach((field) => {
