@@ -13,6 +13,14 @@ class Product extends BaseModel {
   }
 }
 
-const ProductsQuery = () => queryBuilder(Product);
+const ProductsQuery = () => {
+  const query = queryBuilder(Product);
+
+  query.hasTags = (tags) => {
+    return query.whereJsonSupersetOf('metadata', { tags });
+  }
+
+  return query;
+};
 
 module.exports = ProductsQuery;

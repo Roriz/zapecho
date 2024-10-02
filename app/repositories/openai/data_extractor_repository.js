@@ -7,15 +7,14 @@ const SENDER_TYPE_TO_ROLE = {
 
 module.exports = {
   dataExtractor: async function dataExtractor(lastRelevantMessages, fieldToExtract) {
-    const fieldsWithExplicit = fieldToExtract
+    const fieldsWithExplanation = {}
     
     Object.keys(fieldToExtract).forEach((field) => {
-      if (fieldToExtract[field].type === 'boolean') { return; }
-
-      fieldsWithExplicit[`${field}_explicit`] = {
-        type: 'boolean',
-        description: `The user explicitly states, either directly or indirectly, something about: ${field}.`
+      fieldsWithExplanation[`${field}_chain_of_thought`] = {
+        type: 'text',
+        description: `The user's chain of thought that led to the conclusion about: ${field}.`
       }
+      fieldsWithExplanation[field] = fieldToExtract[field];
     });
 
     const messages = [
@@ -24,7 +23,7 @@ module.exports = {
         content: `
         Act as a data extractor function, that will extract structured and typed data from the user messages.
         You reponse a valid json based on the data schema:
-        ${JSON.stringify(fieldsWithExplicit, null, 2)}
+        ${JSON.stringify(fieldsWithExplanation, null, 2)}
         `
       },
       ...lastRelevantMessages.map(m => {
@@ -43,8 +42,8 @@ module.exports = {
 
     const cleanedResponse = {}
     Object.keys(response).forEach((field) => {
-      if (field.endsWith('_explicit')) { return; }
-      if (!response[field] || !response[`${field}_explicit`]) { return }
+      if (field.endsWith('_chain_of_thought')) { return; }
+      if (!response[field] || !response[`${field}_chain_of_thought`]) { return }
 
       cleanedResponse[field] = response[field];
     });

@@ -14,7 +14,7 @@ exports.up = function(knex) {
     table.string('description').notNullable();
     table.string('visual_description');
     table.integer('price').notNullable();
-    table.json('metadata').notNullable();
+    table.jsonb('metadata').notNullable();
 
     table.unique(['code', 'client_id']);
     table.foreign('client_id').references('clients.id').onDelete('CASCADE');

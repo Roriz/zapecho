@@ -1,4 +1,6 @@
 const OpenAI = require('openai');
+const fromPairs = require('lodash/fromPairs');
+const isEmpty = require('lodash/isEmpty');
 const envParams = require('#/configs/env_params.js');
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -15,16 +17,30 @@ function openaiSDK() {
   return openai
 }
 
+function _extract_functions(message) {
+  const calls = message.match(/{{\s*(.*?)\s*}}/) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
+  const functions = calls.map(call => {
+    const [_, name, raw_arguments] = call.match(/(\w+)\((.*?)\)/); // _, example_function, arg1: 'a', arg2: ['c', 'd']
+    
+    let arguments
+    eval(`arguments = {${raw_arguments}}`) // { arg1: 'a', arg2: ['c', 'd'] }
+    
+    return [name, { name, arguments, raw: call }];
+  }); // [['example_function', { name: 'example_function', arguments: { arg1: 'a', arg2: ['c', 'd'] }, raw: '{{ example_function(arg1: 'a', arg2: ['c', 'd']) }}']]
+
+  return fromPairs(functions);
+}
+
 async function threadRun(thread_id, assistant_id, prompt) {
   const agentRunParams = {
     message_body: undefined,
     openai_run_id: undefined,
     openai_message_id: undefined,
     total_tokens: undefined,
-    actions: [],
+    functions: {},
   }
 
-  console.log('[openai][threadRun] thread_id:', thread_id, 'assistant_id:', assistant_id, 'prompt:', prompt)
+  console.info('[openai][threadRun] thread_id:', thread_id, 'assistant_id:', assistant_id, 'prompt:', prompt)
   const run = openaiSDK().beta.threads.runs.stream(
     thread_id, {
     assistant_id,
@@ -42,11 +58,13 @@ async function threadRun(thread_id, assistant_id, prompt) {
 
   await run.finalRun();
   
-  const actions = agentRunParams.message_body?.match(/#(\w|-)+/g) || [];
-  if (actions.length) {
-    agentRunParams.actions = { list: actions};
-    actions.forEach(action => {
-      agentRunParams.message_body = agentRunParams.message_body.replaceAll(action, '').trim();
+  const functions = _extract_functions(agentRunParams.message_body);
+  if (!isEmpty(functions)) {
+    agentRunParams.functions = functions;
+    Object.values(functions).forEach(f => {
+      agentRunParams.message_body = agentRunParams.message_body.replaceAll(
+        `{{ ${f.raw} }}`, ''
+      ).replaceAll(`{{${f.raw}}}`, '').trim();
     })
   }
 

@@ -4,9 +4,12 @@ const ClientsAssistants = require('~/models/clients_assistant.js');
 
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 const { threadRun, deleteThreadMessage } = require('~/repositories/openai_repository.js');
+const { addCart } = require('~/services/carts/add_service.js');
 
 class BaseAgent {
-  slug = 'Base Agent'; // override this in the subclass
+  slug = 'base-agent'; // override this in the subclass
+
+  static run(workflowUser) { return new this(workflowUser).run(); }
 
   constructor(workflowUser) {
     this.workflowUser = workflowUser;
@@ -31,6 +34,25 @@ class BaseAgent {
     return this.createAgentRun({
       next_status,
       is_complete: true
+    });
+  }
+
+  async find_product(code_or_name) {
+    return await Products().findOne({
+      client_id: this.workflowUser.client_id,
+      code: code_or_name
+    }) || await Products().findOne({
+      client_id: this.workflowUser.client_id,
+      name: code_or_name
+    });
+  }
+
+  addCart(productId, quantity = 1) {
+    return addCart({
+      user_id: this.workflowUser.user_id,
+      client_id: this.workflowUser.client_id,
+      product_id: productId,
+      quantity,
     });
   }
 

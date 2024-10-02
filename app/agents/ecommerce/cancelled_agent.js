@@ -33,7 +33,7 @@ class EcommerceCancelledAgent extends BaseAgent {
     const prompt = this.answerData.has_gone_too_pushy ? FAREWELL_PROMPT : LAST_TRY_PROMPT
     await this.threadRun(prompt);
 
-    if (this.agentRunParams.actions.list?.includes('#search')) {
+    if (this.agentRunParams.functions?.search) {
       return this.deleteRunAndGoToStatus('cart');
     }
 

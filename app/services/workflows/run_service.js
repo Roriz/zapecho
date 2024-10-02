@@ -9,7 +9,9 @@ const WORKFLOW_TO_RUNNER = {
   'ecommerce-demo': () => require('~/workflows/ecommerce_demo_workflow.js'),
 }
 
-async function migrateMessages(oldWorkflowUser, newWorkflowUser) {
+// HACK: migrate the messages from the previous workflow to the new one.
+// Ideally, we should have messages with multiple workflow_user_ids or duplicate the messages for each workflow_user_id.
+async function _migrateLatestMessages(oldWorkflowUser, newWorkflowUser) {
   const messages = await Messages().where('sender_type', 'user').lastRelevantMessages(oldWorkflowUser.id, 1);
 
   return Promise.all(
@@ -17,7 +19,8 @@ async function migrateMessages(oldWorkflowUser, newWorkflowUser) {
   );
 }
 
-async function runWorkflow(workflowUser) {
+module.exports = async function runWorkflow(workflowUserId) {
+  const workflowUser = await WorkflowUsers().findOne('id', workflowUserId);
   const workflow = await Workflows().findOne('id', workflowUser.workflow_id);
 
   if (workflowUser.is_running) { console.warn(`Workflow ${workflow.slug} is already running`); return; }
@@ -40,7 +43,7 @@ async function runWorkflow(workflowUser) {
       });
 
       if (runnerWorkflowUser.id !== workflowUser.id) {
-        await migrateMessages(workflowUser, runnerWorkflowUser);
+        await _migrateLatestMessages(workflowUser, runnerWorkflowUser);
         await runWorkflow(runnerWorkflowUser)
       }
     })
@@ -52,5 +55,3 @@ async function runWorkflow(workflowUser) {
     });
   }
 };
-
-module.exports = runWorkflow

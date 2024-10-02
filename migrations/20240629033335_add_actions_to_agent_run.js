@@ -4,7 +4,7 @@
  */
 exports.up = function(knex) {
   return knex.schema.table('agent_runs', function(table) {
-    table.json('actions');
+    table.jsonb('functions');
   });
 };
 
@@ -14,6 +14,6 @@ exports.up = function(knex) {
  */
 exports.down = function(knex) {
   return knex.schema.table('agent_runs', function(table) {
-    table.dropColumn('actions');
+    table.dropColumn('functions');
   });
 };
