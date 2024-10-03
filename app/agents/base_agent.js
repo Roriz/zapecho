@@ -23,9 +23,12 @@ class BaseAgent {
   get answerData() {
     return this.workflowUser.answers_data;
   }
+
   client() {
     return Clients().findOne('id', this.workflowUser.client_id);
   }
+
+  // TODO: support multiple assistants per client
   assistant() {
     return ClientsAssistants().findOne('client_id', this.workflowUser.client_id);
   }

@@ -4,6 +4,14 @@ const SENDER_TYPE_TO_ROLE = {
   'user': 'user',
   'agent': 'assistant',	
 }
+const INVALID_VALUES = [
+ 'not sure',
+ 'not clear',
+ 'not specified',
+ 'none',
+ 'null',
+ 'undefined',
+]
 
 module.exports = {
   dataExtractor: async function dataExtractor(lastRelevantMessages, fieldToExtract) {
@@ -44,6 +52,8 @@ module.exports = {
     Object.keys(response).forEach((field) => {
       if (field.endsWith('_chain_of_thought')) { return; }
       if (!response[field] || !response[`${field}_chain_of_thought`]) { return }
+      
+      if (INVALID_VALUES.includes(response[field])) { return }
 
       cleanedResponse[field] = response[field];
     });
