@@ -106,12 +106,12 @@ module.exports = async function whatsappReceiveService(params) {
     _markMessagesAsRead(params);
     return;
   }
-
+  
   const channel = await _findChannel(params.metadata.phone_number_id);
   if (!channel) { throw new Error('Channel not found'); }
-
+  
   const user = await _findOrInsertUser(params.contacts[0]);
-
+  
   const message = await _insertMessage(params.messages[0], user, channel);
 
   const clientId = await _discoverTheClient(message, user, channel); // can be null
@@ -121,6 +121,11 @@ module.exports = async function whatsappReceiveService(params) {
     workflow_user_id: workflowUser.id,
     client_id: clientId,
   });
+  
+  if (params.messages[0].text?.body == '/reset') {
+    await WorkflowUsers().updateOne(workflowUser, { status: 'force_reset', finished_at: new Date() });
+    return;
+  }
 
   // INFO: run the workflow async
   // TODO: use a background job here

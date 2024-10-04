@@ -1,20 +1,22 @@
 const Messages = require('~/models/message.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
-const StorageAttachments = require('~/models/storage_attachment.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
 const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
 const { whatsappHumanSendMessages } = require('~/services/whatsapp/human_send_service.js');
 
-const { EcommerceIntroductionAgent } = require('~/agents/ecommerce/introduction_agent.js')
-const { EcommerceSearchAgent } = require('~/agents/ecommerce/search_agent.js')
+const { MedicalSecretaryRecepcionistAgent } = require('~/agents/medical_secretary/recepcionist_agent.js')
 const { MedicalSecretarySchedulerAgent } = require('~/agents/medical_secretary/scheduler_agent.js')
+const { MedicalSecretaryNotIcpAgent } = require('~/agents/medical_secretary/not_icp_agent.js')
+const { MedicalSecretarySchedulerAgent } = require('~/agents/medical_secretary/finance_agent.js')
+const { MedicalSecretaryTooUrgentAgent } = require('~/agents/medical_secretary/too_urgent_agent.js')
 
 const STATUS_TO_AGENT = {
   'recepcionist': MedicalSecretaryRecepcionistAgent,
   'schedule_appointment': MedicalSecretarySchedulerAgent,
-  'cancel_not_a_client': MedicalSecretaryNotAClientAgent,
-  'cancel_too_urgent': MedicalSecretaryTooUrgentAgent,
+  'payment': MedicalSecretaryFinanceAgent,
+  'not_icp': MedicalSecretaryNotIcpAgent,
+  'too_urgent': MedicalSecretaryTooUrgentAgent,
 }
 
 const FIRST_STATUS = 'recepcionist';
@@ -61,14 +63,14 @@ async function _extract_guard_rails_data(workflowUser) {
   }
 }
 
-module.exports = async function ecommerceDemoWorkflow(workflowUser) {
-  console.info('[workflows/ecommerce_demo_workflow] starting');
+module.exports = async function medicalSecretaryWorkflow(workflowUser) {
+  console.info('[workflows/medical_secretary_workflow] starting');
   if (!workflowUser.openai_thread_id) {
     workflowUser = await _createThread(workflowUser)
   }
 
   await _addMessagesToThread(workflowUser)
-  console.info('[workflows/ecommerce_demo_workflow] added messages to thread');
+  console.info('[workflows/medical_secretary_workflow] added messages to thread');
 
   const lastUnrespondedMessages = await Messages().where('sender_type', 'user').lastRelevantMessages(workflowUser.id);
   workflowUser = await _extract_guard_rails_data(workflowUser);
@@ -85,7 +87,7 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   if (!workflowUser.status) {
     workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: FIRST_STATUS });
   }
-  console.info('[workflows/ecommerce_demo_workflow] data extracted and passed guard rails');
+  console.info('[workflows/medical_secretary_workflow] data extracted and passed guard rails');
 
   const Agent = STATUS_TO_AGENT[workflowUser.status]
   if (!Agent) {
@@ -93,11 +95,11 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   }
 
   const agentRun = await Agent.run(workflowUser);
-  console.info('[workflows/ecommerce_demo_workflow] agent runned');
+  console.info('[workflows/medical_secretary_workflow] agent runned');
   
   // TODO: validate if need to send a message
   await whatsappHumanSendMessages(agentRun, channelId);
-  console.info('[workflows/ecommerce_demo_workflow] messages sent');
+  console.info('[workflows/medical_secretary_workflow] messages sent');
   
   if (agentRun.is_complete) {
     if (agentRun.next_status) {
@@ -106,7 +108,7 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
 
     // HANK: we need a flag to know if the agentRun need or not run again
     if (!agentRun.message_body) {
-      return ecommerceDemoWorkflow(workflowUser);
+      return medicalSecretaryWorkflow(workflowUser);
     }
   }
 

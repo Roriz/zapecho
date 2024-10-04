@@ -23,7 +23,7 @@ const DATA_TO_EXTRACT = {
   },
 }
 
-const PROMPT = `
+const BASE_PROMPT = `
 You will act as a sheduler for a medical secretary.
 
 ## Your Role
@@ -31,50 +31,75 @@ You will act as a sheduler for a medical secretary.
 - Confirm the appointment date and time with the patient.
 
 ## Suggested Steps
-- Start by greeting the patient and asking open-ended questions to understand their symptoms and preferences.
-- Listen actively and clarify any ambiguous responses to ensure you understand their needs.
-- Inquire about the type of appointment the patient is looking for (initial or follow-up).
-- Determine the urgency of the appointment based on the patient's symptoms. Skip if is just a follow-up.
-- Guess and confirm the patient's preferred medical speciality based on their symptoms. Skip if is just a follow-up.
+- You will receive the doctor's most closest available date and times. Use the doctor's schedule to suggest a date and time to the patient.
+- if the first available date and time is not suitable for the patient, ask the patient the prefered date and time and call the function \`check_availabilities_for(iso_date: string)\`
+- Confirm the appointment date and time with the patient, using more formal language.
 
-## Example Interaction
-user: Hi! I'm looking for a doctor.
-assistant: Hello! I'm here to help you. Can you tell me more about your symptoms and preferences?
-user: I have a skin rash and I need to see a doctor urgently.
-assistant: Can you tell me if this is an initial visit or a follow-up appointment?
-user: It's an initial visit.
-assistant: Understood. Can you describe the rash? Is it itchy or painful?
-user: It's itchy and red.
-assistant: Thank you for sharing that. Based on your symptoms, I believe you need to see a dermatologist. Is that correct?
-user: Yes, that's correct.
-assistant: {{ schedule_appointment() }}
+## Functions
+- \`check_availabilities_for(iso_date: string)\` - Check the doctor's all availabilities slots for a specific date. The date should be in the format "YYYY-MM-DD".
 `
 
 class MedicalSecretarySchedulerAgent extends BaseAgent {
   async run() {
     await this.extractData(DATA_TO_EXTRACT);
 
-    const client = await this.client();
-
-    if (this.answerData.appointment_type === 'follow-up') {
-      return this.goToStatus('schedule_appointment');
-    }
-
-    if(this.answerData.patient_looking_for_speciality && !client.metadata?.specialities.includes(this.answerData.patient_looking_for_speciality)) {
-      return this.goToStatus('cancel_not_a_client');
-    }
-
-    if (this.answerData.ESI_level && HOSPITAL_ESI_LEVELS.includes(this.answerData.ESI_level)) {
-      return this.goToStatus('cancel_too_urgent');
+    if (this.answerData.schedule_appointment_confirmation && this.#scheduleDatetime()) {
+      return this.goToStatus('payment');
     }
     
-    this.agentRunParams = await this.threadRun(PROMPT);
-    let agentRun = await this.createAgentRun(this.agentRunParams);
-    if (agentRun.functions?.schedule_appointment) {
-      return this.goToStatus('schedule_appointment');
-    }
+    let agentRun = {}
+    do {
+      // FIXME: add the enduser timezone
+      const prompt = `
+      ${BASE_PROMPT}
+
+      ## Updated doctor's availabilities
+      ${this.#doctorAvailabilities(agentRun?.functions?.check_availabilities_for?.arguments?.iso_date)}
+      
+      ## Additional Information
+      Act like today is ${this.#todayIsoDate()}, ${this.#weekDay()})}.
+      `
+
+      this.agentRunParams = await this.threadRun(prompt);
+      agentRun = await this.createAgentRun(this.agentRunParams);
+      if (agentRun.functions?.check_availabilities_for) {
+        await this.deleteThreadRun();
+      }
+    } while (agentRun?.functions?.check_availabilities_for);
 
     return agentRun;
+  }
+
+  #todayIsoDate() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  #weekDay() {
+    return new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  }
+
+  // FIXME: add the enduser timezone
+  #scheduleDatetime() {
+    const dateTime = `${this.answerData.schedule_appointment_year}-${this.answerData.schedule_appointment_month}-${this.answerData.schedule_appointment_day}T${this.answerData.schedule_appointment_time}:00:00`;
+    try {
+      return new Date(dateTime);
+    } catch (error) {
+      return undefined;
+    }
+  }
+
+  // TODO: integrate with calendar service like Google Calendar
+  #doctorAvailabilities(date) {
+    if (date) { return `any time` }
+
+    return `
+    Every week:
+      - Monday: none
+      - Tuesday: 04:00 - 08:00
+      - Wednesday: 08:00 - 12:00
+      - Thursday: 12:00 - 16:00
+      - Friday: 16:00 - 20:00
+    `;
   }
 }
 
