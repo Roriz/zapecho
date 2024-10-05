@@ -6,12 +6,12 @@ const MESSAGE_TYPE_TO_AGENT_ROLE = {
 }
 
 module.exports = {
-  addMessageToThread: function addMessageToThread(thread_id, message) {
+  addMessageToThread: function addMessageToThread(thread_id, message_sender_type, message_body) {
     return openaiSDK().beta.threads.messages.create(
       thread_id,
       {
-        role: MESSAGE_TYPE_TO_AGENT_ROLE[message.sender_type],
-        content: message.body
+        role: MESSAGE_TYPE_TO_AGENT_ROLE[message_sender_type],
+        content: message_body
       }
     );
   }

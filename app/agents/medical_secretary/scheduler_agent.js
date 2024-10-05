@@ -32,11 +32,16 @@ You will act as a sheduler for a medical secretary.
 
 ## Suggested Steps
 - You will receive the doctor's most closest available date and times. Use the doctor's schedule to suggest a date and time to the patient.
+- Suggest only 2 or 3 specific date and time options to the patient. Pick slots in different days and differents parts of the day (morning, afternoon, evening).
 - if the first available date and time is not suitable for the patient, ask the patient the prefered date and time and call the function \`check_availabilities_for(iso_date: string)\`
 - Confirm the appointment date and time with the patient, using more formal language.
 
 ## Functions
 - \`check_availabilities_for(iso_date: string)\` - Check the doctor's all availabilities slots for a specific date. The date should be in the format "YYYY-MM-DD".
+
+## Expected happy path
+current_step: Find the perfect date and time for the patient and the doctor.
+next_ste: Start the payment process
 `
 
 class MedicalSecretarySchedulerAgent extends BaseAgent {
@@ -95,10 +100,10 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
     return `
     Every week:
       - Monday: none
-      - Tuesday: 04:00 - 08:00
-      - Wednesday: 08:00 - 12:00
-      - Thursday: 12:00 - 16:00
-      - Friday: 16:00 - 20:00
+      - Tuesday: 04:00 AM until 08:00 AM
+      - Wednesday: 08:00 AM until 12:00 PM
+      - Thursday: 12:00 PM until 04:00 PM
+      - Friday: 04:00 PM until 08:00 PM
     `;
   }
 }

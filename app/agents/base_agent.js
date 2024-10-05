@@ -92,6 +92,8 @@ class BaseAgent {
 
   async extractData(dataToExtract) {
     this.workflowUser = await ExtractDataService(this.workflowUser, dataToExtract);
+    
+    return this.workflowUser;
   }
 
 }

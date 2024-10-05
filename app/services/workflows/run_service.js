@@ -7,6 +7,7 @@ const WorkflowUsers = require('~/models/workflow_user.js');
 const WORKFLOW_TO_RUNNER = {
   'router-client': () => require('~/workflows/router_client_workflow.js'),
   'ecommerce-demo': () => require('~/workflows/ecommerce_demo_workflow.js'),
+  'medical-secretary': () => require('~/workflows/medical_secretary_workflow.js'),
 }
 
 // HACK: migrate the messages from the previous workflow to the new one.

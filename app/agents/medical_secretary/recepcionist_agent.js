@@ -1,8 +1,13 @@
+const omitBy = require('lodash/omitBy');
 const { BaseAgent } = require('~/agents/base_agent.js');
 
-const HOSPITAL_ESI_LEVELS = ['1', '2', '3'];
+const HOSPITAL_ESI_LEVELS = ['1', '2'];
 const DATA_TO_EXTRACT = {
-  patient_looking_for_speciality: {
+  chat_is_long_enough_to_make_a_guess_about_speciality: {
+    type: 'boolean',
+    description: 'Check if the chat is long enough to make a guess about the speciality.'
+  },
+  looking_for_what_speciality: {
     type: 'string',
     description: 'The speciality that the patient is looking for',
     enum: [
@@ -59,24 +64,26 @@ user: It's itchy and red.
 assistant: Thank you for sharing that. Based on your symptoms, I believe you need to see a dermatologist. Is that correct?
 user: Yes, that's correct.
 assistant: {{ schedule_appointment() }}
+
+## Expected happy path
+current_step: Guess and confirm the patient's preferred medical speciality based on their symptoms.
+next_ste: Find the perfect date and time for the patient and the doctor.
 `
 
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   async run() {
-    await this.extractData(DATA_TO_EXTRACT);
-
-    const client = await this.client();
+    this.workflowUser = await this.extractData(this.#dataToExtract);
 
     if (this.answerData.appointment_type === 'follow-up') {
       return this.goToStatus('schedule_appointment');
     }
 
-    if(this.answerData.patient_looking_for_speciality && !client.metadata?.specialities.includes(this.answerData.patient_looking_for_speciality)) {
-      return this.goToStatus('cancel_not_a_client');
+    if(!this.#client_has_the_speciality_requested()) {
+      return this.goToStatus('not_icp');
     }
 
-    if (this.answerData.ESI_level && HOSPITAL_ESI_LEVELS.includes(this.answerData.ESI_level)) {
-      return this.goToStatus('cancel_too_urgent');
+    if (HOSPITAL_ESI_LEVELS.includes(this.answerData.ESI_level)) {
+      return this.goToStatus('too_urgent');
     }
     
     this.agentRunParams = await this.threadRun(PROMPT);
@@ -86,6 +93,18 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     }
 
     return agentRun;
+  }
+
+  async #client_has_the_speciality_requested() {
+    if ('looking_for_what_speciality' in this.answerData) { return true; }
+
+    const client = await this.client();
+
+    return client.metadata?.specialities.includes(this.answerData.looking_for_what_speciality);
+  }
+
+  #dataToExtract() {
+    return omitBy(DATA_TO_EXTRACT, (value, key) => key in this.answerData);
   }
 }
 

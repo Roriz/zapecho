@@ -1,12 +1,12 @@
 const StorageAttachments = require('~/models/storage_attachment.js');
 
-const { whatsappSendService } = require('~/repositories/whatsapp_repository.js');
+const { whatsappSendService } = require('~/services/whatsapp/send_service.js');
 
-module.exports = async function whatsappHumanSendMessages(agentRun, channelId) {
+async function whatsappHumanSendMessages(agentRun, channelId) {
   const attachments = await StorageAttachments().where('storable_type', 'agent_run').where('storable_id', agentRun.id);
   const bodyMessages = agentRun.message_body?.trim()?.split('\n\n') || [];
 
-  for (let [index, bodyMessage] of bodyMessages) {
+  for (let [index, bodyMessage] of bodyMessages.entries()) {
     if (!bodyMessage.trim()) { continue; }
 
     await whatsappSendService({
@@ -40,4 +40,8 @@ module.exports = async function whatsappHumanSendMessages(agentRun, channelId) {
       image: attachment
     })
   }
+}
+
+module.exports = {
+  whatsappHumanSendMessages
 }

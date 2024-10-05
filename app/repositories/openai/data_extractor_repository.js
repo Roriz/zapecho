@@ -48,6 +48,8 @@ module.exports = {
 
     const response = await completionCall(messages);
 
+    console.debug('dataExtractor response', response);
+
     const cleanedResponse = {}
     Object.keys(response).forEach((field) => {
       if (field.endsWith('_chain_of_thought')) { return; }

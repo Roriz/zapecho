@@ -4,7 +4,7 @@ const WorkflowUser = require('~/models/workflow_user.js');
 const { sendWhatsappMessage } = require('~/repositories/whatsapp_repository.js');
 const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
 
-module.exports = async function whatsappSendService(messageParams) {
+async function whatsappSendService(messageParams) {
   const workflowUser = await WorkflowUser().findOne('id', messageParams.workflow_user_id);
   
   const message = await Message().insert({
@@ -35,3 +35,5 @@ module.exports = async function whatsappSendService(messageParams) {
 
   return message;
 };
+
+module.exports = { whatsappSendService }
