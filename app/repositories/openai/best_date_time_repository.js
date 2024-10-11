@@ -51,8 +51,8 @@ module.exports = {
         ${requirements.map(requirement => `- ${requirement}`).join('\n')}
 
         ## Available Dates
-        ${possibleDates.map(date => {
-          const [date, time] = date.toISOString().split('T');
+        ${possibleDates.map(isoDate => {
+          const [date, time] = isoDate.toISOString().split('T');
           const [hour, minute] = time.split(':');
           const weekDay = date.toLocaleDateString('en-US', { weekday: 'long' });
           return `- ${date} ${hour}:${minute} (${weekDay})`

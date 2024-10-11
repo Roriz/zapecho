@@ -2,27 +2,15 @@ const { BaseAgent } = require('~/agents/base_agent.js');
 const { bestDateTimeRepository } = require('~/repositories/openai/best_date_time_repository.js');
 
 const DATA_TO_EXTRACT = {
-  schedule_appointment_day: {
+  appointment_date_and_time: {
     type: 'number',
-    description: 'The day the user wants to schedule the appointment. From 1 to 31.',
+    description: 'The date and time the user wants to schedule the appointment. date and time entries in the format \`YYYY-MM-DD HH:MM\`'
   },
-  schedule_appointment_time: {
-    type: 'number',
-    description: 'The time the user wants to schedule the appointment. From 0 to 23.',
-  },
-  schedule_appointment_month: {
-    type: 'number',
-    description: 'The month the user wants to schedule the appointment. From 1 to 12.',
-  },
-  schedule_appointment_year: {
-    type: 'number',
-    description: 'The for digits year the user wants to schedule the appointment.',
-  },
-  schedule_appointment_confirmation: {
+  appointment_date_and_time_has_been_confirmed: {
     type: 'boolean',
     description: 'The user confirms the appointment schedule date and time.',
   },
-  user_schedule_appointment_requirements: {
+  appointment_requirements: {
     type: 'array',
     description: 'The user has any requirements for the appointment schedule date and time. E.g. "morning", "afternoon"',
     items: { type: 'string' }
@@ -65,7 +53,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   async run() {
     await this.extractData(DATA_TO_EXTRACT);
 
-    if (this.answerData.schedule_appointment_confirmation && this.#scheduleDatetime()) {
+    if (this.answerData.appointment_date_and_time_has_been_confirmed && this.#scheduleDatetime()) {
       return this.goToStatus('payment');
     }
     
@@ -102,9 +90,8 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
 
   // FIXME: add the enduser timezone
   #scheduleDatetime() {
-    const dateTime = `${this.answerData.schedule_appointment_year}-${this.answerData.schedule_appointment_month}-${this.answerData.schedule_appointment_day}T${this.answerData.schedule_appointment_time}:00:00`;
     try {
-      return new Date(dateTime);
+      return new Date(this.answerData.appointment_date_and_time);
     } catch (error) {
       return undefined;
     }

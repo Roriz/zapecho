@@ -15,6 +15,8 @@ const INVALID_VALUES = [
 
 module.exports = {
   dataExtractor: async function dataExtractor(lastRelevantMessages, fieldToExtract) {
+    if (!lastRelevantMessages || lastRelevantMessages.length === 0) { return {} }
+
     const fieldsWithExplanation = {}
     
     Object.keys(fieldToExtract).forEach((field) => {
@@ -47,8 +49,6 @@ module.exports = {
     ]
 
     const response = await completionCall(messages);
-
-    console.debug('dataExtractor response', response);
 
     const cleanedResponse = {}
     Object.keys(response).forEach((field) => {

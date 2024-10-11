@@ -55,13 +55,12 @@ const _insertMessage = async (params, user, channel) => {
 const _clientByWorkflowUser = async (user) => {
   const workflowUser = await WorkflowUsers().findOne({ user_id: user.id, finished_at: null });
 
-  console.debug('_clientByWorkflowUser', workflowUser);
   return workflowUser?.client_id;
 };
 
 const _clientByFindableMessage = async (message) => {
   const client = await Clients().findOne('findable_message', message.body);
-  console.debug('_clientByFindableMessage', client);
+  
   return client?.id;
 };
 

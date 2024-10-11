@@ -104,6 +104,7 @@ module.exports = async function medicalSecretaryWorkflow(workflowUser) {
 
     // HANK: we need a flag to know if the agentRun need or not run again
     if (!agentRun.message_body) {
+      workflowUser = await WorkflowUsers().findOne('id', workflowUser.id);
       return medicalSecretaryWorkflow(workflowUser);
     }
   }
