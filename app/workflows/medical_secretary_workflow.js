@@ -47,15 +47,13 @@ async function _addMessagesToThread(workflowUser, client) {
 const DATA_TO_EXTRACT = {
   user_want_to_stop_the_conversation: {
     type: 'boolean',
-    description: `User says that want to stop the conversation.`
+    description: `User ask explicitly to stop the conversation like: "I don't want to talk anymore" or "Stop talking to me" or similar. Be careful with litotes and sarcasm.`
   },
-  the_subject_is_irrelevant: {
+  message_is_irrelevant: {
     type: 'boolean',
-    description: `
-    User says that the subject is not relevant or false for any other case.
-    Subject is far from the talk about the medical attendance.
-    `
+    description: `Return true if the message does not add value to a conversation with a medical secretary. The conversation may involve health, appointments, payments, confirmations, or clinic information.  Be careful with litotes and sarcasm.`
   }
+  // TODO: create a blocklist of topics
 }
 
 module.exports = async function medicalSecretaryWorkflow(workflowUser) {
@@ -73,7 +71,7 @@ module.exports = async function medicalSecretaryWorkflow(workflowUser) {
   
   workflowUser = await extract_data_service(workflowUser, DATA_TO_EXTRACT);
   // TODO: improve the guard rails
-  if (workflowUser.answers_data?.the_subject_is_irrelevant) {
+  if (workflowUser.answers_data?.message_is_irrelevant) {
     Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 
     return workflowUser;
   } else if (workflowUser.answers_data?.user_want_to_stop_the_conversation) {

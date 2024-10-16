@@ -27,6 +27,8 @@ module.exports = {
       fieldsWithExplanation[field] = fieldToExtract[field];
     });
 
+    console.debug('[dataExtractor] fieldsWithExplanation', JSON.stringify(fieldsWithExplanation, null, 2));
+
     const messages = [
       {
         role: 'system',
@@ -47,8 +49,11 @@ module.exports = {
         }
       }).filter(m => m)
     ]
+    console.debug('[dataExtractor] messages', JSON.stringify(messages, null, 2));
 
     const response = await completionCall(messages);
+
+    console.debug('[dataExtractor] response', JSON.stringify(response, null, 2));
 
     const cleanedResponse = {}
     Object.keys(response).forEach((field) => {

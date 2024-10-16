@@ -1,102 +1,157 @@
-const omitBy = require('lodash/omitBy');
 const { BaseAgent } = require('~/agents/base_agent.js');
+const WorkflowUsers = require('~/models/workflow_user.js');
 
 const HOSPITAL_ESI_LEVELS = ['1', '2'];
-const DATA_TO_EXTRACT = {
-  chat_is_long_enough_to_make_a_guess_about_speciality: {
-    type: 'boolean',
-    description: 'Check if the chat is long enough to make a guess about the speciality.'
-  },
-  looking_for_what_speciality: {
-    type: 'string',
-    description: 'The speciality that the patient is looking for',
-    enum: [
-      'Internal Medicine', 'Cardiology', 'Dermatology', 'Pediatrics',
-      'Obstetrics and Gynecology', 'General Surgery', 'Orthopedics',
-      'Neurology', 'Psychiatry', 'Oncology', 'other', 'not medical', 'not clear',
-    ]
-  },
-  ESI_level: {
-    type: 'string',
-    description: `
-    The ESI levels (Emergency Severity Index) of the patient:
-    Level 1 (Immediate): Life-threatening emergencies requiring immediate intervention, such as cardiac arrest, severe trauma, or respiratory failure.
-    Level 2 (Emergent): Conditions that require urgent attention but are not immediately life-threatening, like chest pain, acute shortness of breath, or severe infections.
-    Level 3 (Urgent): Conditions that are serious but can wait a short time without immediate risk to life, such as moderate pain or injuries.
-    Level 4 (Less Urgent): Minor issues, like small cuts or mild symptoms, that can be managed with some delay.
-    Level 5 (Non-Urgent): Routine or mild issues, such as a simple prescription refill or minor ailments, that do not require immediate care.
-    not clear: If the patient's symptoms are not clear or they are unsure about the urgency.
-    `,
-    // THINKING: support if patient do not want to share the symptoms
-    enum: ['1', '2', '3', '4', '5', 'not clear']
-  },
-  appointment_type: {
-    type: 'string',
-    enum: ['initial', 'follow-up', 'not clear'],
-    description: 'The type of appointment that the patient is looking for',
-  },
+const SPECIALITIES = ['Internal Medicine', 'Cardiology', 'Dermatology', 'Pediatrics', 'Obstetrics and Gynecology', 'General Surgery', 'Orthopedics', 'Neurology', 'Psychiatry', 'Oncology', 'other', 'not medical'];
+const BASE_PROMPT = `
+You are a medical secretary assisting a specific doctor. You will create the next template message. The template can include variables and addons that will be processed before sending.
+Help patients determine if their symptoms match the doctor's specialty.
+Gather relevant information about their symptoms and preferences to determine if the doctor can treat them.
+Do not suggest other doctors or services if their symptoms don't match the doctor's specialty.
+
+### Suggested Steps
+1. Greet the patient: Introduce the doctor and offer to answer any questions.
+2. Discover the appointment type: Check if the patient is seeking an initial or follow-up appointment.
+3. Discover the medical specialty: Ask questions to understand their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the needed specialty.
+4. Discover the urgency: Ask questions to assess the urgency. Gather enough information without overwhelming the patient. Make a fair guess about whether the patient needs hospital care.
+5. Appointment scheduling: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling.
+
+### Functions
+Functions are called at any time during the conversation to save the patient's responses or move the conversation forward.
+To call a addon, use this format:
+{{ addon_name(argument_name: 'value') }}
+Example with a addon:
+\`\`\`
+assistant: What is your name?
+user: John
+assistant: {{ save_name(name: 'John') }} Thank you. How can I help you today?
+\`\`\`
+
+#### addon {{ go_to_schedule_appointment() }}
+Send the patient to the next step to schedule an appointment.
+Call this addon when you have 95% confidence about the appointment type, speciality wanted, and urgency level.
+`
+
+const FUNCTIONS = {
+  save_appointment_type: `#### addon {{ save_appointment_type(type: String) }}
+  Save the appointment type the patient is looking for. Possible values: 'initial' or 'follow-up'.
+  `,
+  save_speciality_wanted: `#### addon {{ save_speciality_wanted(speciality: String) }}
+  Save the speciality the patient is looking for. Possible values: ${SPECIALITIES.join(', ')}
+  `,
+  save_esi_level: `####  addon {{ save_esi_level(esi_level: Number) }}
+  Save the ESI (Emergency Severity Index) level of the patient's symptoms. The possible values are:
+  - Level 1 (Immediate): Life-threatening emergencies needing immediate care, such as cardiac arrest, severe trauma, or respiratory failure.
+  - Level 2 (Emergent): Urgent conditions that are not immediately life-threatening, like chest pain, shortness of breath, or severe infections.
+  - Level 3 (Urgent): Serious conditions that can wait a short time without immediate risk to life, such as moderate pain or injuries.
+  - Level 4 (Less Urgent): Minor issues like small cuts or mild symptoms, which can be managed with some delay.
+  - Level 5 (Non-Urgent): Routine or mild issues like prescription refills or minor ailments that do not require immediate care.
+
+Possible values: 1, 2, 3, 4, 5
+`,
 }
 
-const PROMPT = `
-**You are a medical secretary assisting a specific doctor.**
-- Assist patients by determining if their symptoms align with the doctor's specialty.
-- Gather relevant information about the patient's symptoms and preferences to assess if they can be seen by the doctor.
-- Do not recommend other doctors or services if the patient's symptoms do not match the doctor's specialty.
-
-### **Suggested Steps**:
-1. **Greet the patient** and invite them to share details about their symptoms and preferences for the appointment.
-2. **Ask clarifying questions** as needed to fully understand their symptoms. Aim for balance gather enough information without overwhelming the patient.
-3. Confirm whether the patient is seeking an **initial or follow-up** appointment.
-4. **Assess the urgency** of the situation. If it’s a follow-up, skip urgency assessment unless symptoms have worsened.
-5. **Call the \`schedule_appointment()\` function** to proceed with scheduling the appointment.
-
-### **Functions**:
-- \`schedule_appointment()\` - Send the patient to the next step to schedule an appointment.
-
-### **Expected Happy Path**:
-- **Current step**: Confirm if the doctor’s specialty aligns with the patient’s needs.
-- **Next step**: Find a convenient date and time based on urgency and patient preferences.
-`
+const STEPS = {
+  greet_patient: {
+    objective: 'You are on suggested step 1. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
+    addons: []
+  },
+  discover_appointment_type: {
+    objective: 'You are on suggested step 2. Focus on determining the appointment type. Call the addon {{ save_appointment_type(type: String) }} once you have enough data.',
+    addons: [FUNCTIONS.save_appointment_type]
+  },
+  discover_the_medical_speciality: {
+    objective: `You are on suggested step 3. Focus on determining the medical speciality the patient wants. Once you have enough data to determine the speciality, call the addon {{ save_speciality_wanted(speciality: String) }}.`,
+    addons: [FUNCTIONS.save_speciality_wanted]
+  },
+  discover_the_urgency: {
+    objective: `You are on suggested step 4. Focus on assessing the patient's symptoms and determining the urgency of the situation. Once you have enough data to determine the urgency, call the addon {{ save_esi_level(esi_level: Number) }}`,
+    addons: [FUNCTIONS.save_esi_level]
+  }
+}
 
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   async run() {
-    this.workflowUser = await this.extractData(this.#dataToExtract());
+    if (this.#agentCompleted()) { return this.goToStatus('schedule_appointment'); }
 
-    if (this.answerData.appointment_type === 'follow-up') {
-      return this.goToStatus('schedule_appointment');
+    if (!this.workflowUser.current_step) {
+      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'greet_patient' });
+    } else if ('appointment_type' in this.answerData && 'looking_for_what_speciality' in this.answerData) {
+      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_the_urgency' });
+    } else if ('appointment_type' in this.answerData) {
+      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_the_medical_speciality' });
+    } else {
+      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_appointment_type' });
     }
 
-    if(!this.#client_has_the_speciality_requested()) {
-      return this.goToStatus('not_icp');
-    }
-
-    if (HOSPITAL_ESI_LEVELS.includes(this.answerData.ESI_level)) {
-      return this.goToStatus('too_urgent');
-    }
-
-    if ('appointment_type' in this.answerData && 'ESI_level' in this.answerData, 'looking_for_what_speciality' in this.answerData) {
-      return this.goToStatus('schedule_appointment');
-    }
-    
-    this.agentRunParams = await this.threadRun(PROMPT);
+    this.agentRunParams = await this.threadRun(this.#prompt());
     let agentRun = await this.createAgentRun(this.agentRunParams);
-    if (agentRun.functions?.schedule_appointment) {
+
+    if (agentRun.functions?.go_to_schedule_appointment) {
       return this.goToStatus('schedule_appointment');
+    }
+
+    if (agentRun.functions?.save_appointment_type) {
+      const appointmentType = agentRun.functions.save_appointment_type.arguments.type;
+      // TODO: validate the appointment_type value and grant the integrity of the data
+      this.workflowUser = await this.workflowUser.addAnswerData({ appointment_type: appointmentType });
+      await this.deleteThreadRun();
+
+      if (this.answerData.appointment_type === 'follow-up') {
+        return this.goToStatus('schedule_appointment');
+      } else {
+        return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
+      }
+    }
+
+    if (agentRun.functions?.save_speciality_wanted) {
+      const speciality = agentRun.functions.save_speciality_wanted.arguments.speciality;
+      this.workflowUser = await this.workflowUser.addAnswerData({ looking_for_what_speciality: speciality });
+      await this.deleteThreadRun();
+
+      if (!this.#client_has_the_speciality_requested()) {
+        return this.goToStatus('not_icp');
+      } else {
+        return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
+      }
+    }
+
+    if (agentRun.functions?.save_esi_level) {
+      const esiLevel = parseInt(agentRun.functions.save_esi_level.arguments.esi_level);
+      this.workflowUser = await this.workflowUser.addAnswerData({ ESI_level: esiLevel });
+      await this.deleteThreadRun();
+
+      if (HOSPITAL_ESI_LEVELS.includes(esiLevel)) {
+        return this.goToStatus('too_urgent');
+      } else {
+        return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
+      }
     }
 
     return agentRun;
   }
 
-  async #client_has_the_speciality_requested() {
-    if ('looking_for_what_speciality' in this.answerData) { return true; }
+  #agentCompleted() {
+    return 'appointment_type' in this.answerData && 'ESI_level' in this.answerData && 'looking_for_what_speciality' in this.answerData
+  }
 
+  #prompt() {
+    const step = STEPS[this.workflowUser.current_step];
+
+    return `
+    ${BASE_PROMPT}
+
+    ${step.addons.join('\n')}
+
+    ### Objective
+    ${step.objective}
+    `
+  }
+
+  async #client_has_the_speciality_requested() {
     const client = await this.client();
 
     return client.metadata?.specialities.includes(this.answerData.looking_for_what_speciality);
-  }
-
-  #dataToExtract() {
-    return omitBy(DATA_TO_EXTRACT, (value, key) => key in this.answerData);
   }
 }
 

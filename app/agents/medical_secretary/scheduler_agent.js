@@ -6,13 +6,13 @@ const DATA_TO_EXTRACT = {
     type: 'number',
     description: 'The date and time the user wants to schedule the appointment. date and time entries in the format \`YYYY-MM-DD HH:MM\`'
   },
-  appointment_date_and_time_has_been_confirmed: {
+  appointment_confirmed: {
     type: 'boolean',
     description: 'The user confirms the appointment schedule date and time.',
   },
-  appointment_requirements: {
+  appointment_preferences: {
     type: 'array',
-    description: 'The user has any requirements for the appointment schedule date and time. E.g. "morning", "afternoon"',
+    description: 'The user has any preferences for the appointment schedule date and time. E.g. "morning", "afternoon"',
     items: { type: 'string' }
   },
 }
@@ -33,16 +33,9 @@ const BASE_PROMPT = `
 
 ### **Functions**:
 - \`check_availabilities_for(iso_date: string)\` - Use this function to check all available slots for a specific date. Ensure the date is in the format "YYYY-MM-DD".
-
-### **Example Interaction**:
-
-**user**: I'd like to book an appointment.  
-**assistant**: Of course! The doctor’s closest available appointments are on $day1 at 10:00 AM, $day2 at 2:00 PM, or $day4 at 6:00 PM. Would any of these work for you?  
-**user**: Those don’t work for me. Can I have an appointment next Friday?  
-**assistant**: Let me check the available times for next Friday. {{ check_availabilities_for($requested_date) }}  
-**assistant**: The doctor is available on Friday at 11:00 AM and 4:00 PM. Would either of these times be convenient?  
-**user**: Yes, 11:00 AM works.  
-**assistant**: Excellent! Your appointment is confirmed for $appointment_date at 11:00 AM. We look forward to seeing you.
+- \`save_appointment_preferences()\` - Save the user's preferences for the appointment schedule date and time. Common preferences include "morning", "afternoon", or any other preferences mentioned by the user.
+- \`save_sheduled_datetime()\` - Save the scheduled date and time agreed upon with the user.
+- \`save_appointment_confirmed()\` - Save if the user double-checked and confirmed the appointment date and time.
 
 ### **Expected Happy Path**:
 - **Current step**: Find and suggest suitable appointment times for the user.
@@ -51,8 +44,6 @@ const BASE_PROMPT = `
 
 class MedicalSecretarySchedulerAgent extends BaseAgent {
   async run() {
-    await this.extractData(DATA_TO_EXTRACT);
-
     if (this.answerData.appointment_date_and_time_has_been_confirmed && this.#scheduleDatetime()) {
       return this.goToStatus('payment');
     }
@@ -72,6 +63,22 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
       if (agentRun.functions?.check_availabilities_for) {
         // TODO: send a mensage to the patient like: "Let me check the available times for next Friday"
         await this.deleteThreadRun();
+        continue;
+      }
+
+      if (agentRun.functions?.save_appointment_preferences) {
+        this.workflowUser = await this.extractData({ appointment_preferences: DATA_TO_EXTRACT.appointment_preferences });
+      }
+      if (agentRun.functions?.save_sheduled_datetime) {
+        this.workflowUser = await this.extractData({ appointment_date_and_time: DATA_TO_EXTRACT.appointment_date_and_time });
+      }
+
+      if (agentRun.functions?.save_appointment_confirmed) {
+        this.workflowUser = await this.extractData({ appointment_confirmed: DATA_TO_EXTRACT.appointment_confirmed });
+      }
+
+      if (this.answerData.appointment_date_and_time_has_been_confirmed && this.#scheduleDatetime()) {
+        return this.goToStatus('payment');
       }
     } while (agentRun?.functions?.check_availabilities_for);
 
