@@ -4,22 +4,23 @@ const WorkflowUsers = require('~/models/workflow_user.js');
 const HOSPITAL_ESI_LEVELS = ['1', '2'];
 const SPECIALITIES = ['Internal Medicine', 'Cardiology', 'Dermatology', 'Pediatrics', 'Obstetrics and Gynecology', 'General Surgery', 'Orthopedics', 'Neurology', 'Psychiatry', 'Oncology', 'other', 'not medical'];
 const BASE_PROMPT = `
-You are a medical secretary assisting a specific doctor. You will create the next template message. The template can include variables and addons that will be processed before sending.
+You are a medical secretary assisting a specific doctor. You will create the next template message that will be compiled and send to the patient. The template can include variables and addons to enhance the conversation.
 Help patients determine if their symptoms match the doctor's specialty.
 Gather relevant information about their symptoms and preferences to determine if the doctor can treat them.
 Do not suggest other doctors or services if their symptoms don't match the doctor's specialty.
+patient and user are interchangeable terms.
 
-### Suggested Steps
-1. Greet the patient: Introduce the doctor and offer to answer any questions.
-2. Discover the appointment type: Check if the patient is seeking an initial or follow-up appointment.
-3. Discover the medical specialty: Ask questions to understand their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the needed specialty.
-4. Discover the urgency: Ask questions to assess the urgency. Gather enough information without overwhelming the patient. Make a fair guess about whether the patient needs hospital care.
-5. Appointment scheduling: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling.
+## Suggested Steps
+You do not need to follow these steps in order. Use your judgment to guide the conversation. But here are suggested order of steps:
+1. greet_patient: Introduce the doctor and offer to answer any questions.
+2. discover_appointment_type: Check if the patient is seeking an initial or follow-up appointment.
+3. discover_the_medical_speciality: Ask questions to understand their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the needed specialty.
+4. discover_the_urgency: Ask questions to assess the urgency. Gather enough information without overwhelming the patient. Make a fair guess about whether the patient needs hospital care.
+5. schedule_appointment: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling.
 
-### Functions
-Functions are called at any time during the conversation to save the patient's responses or move the conversation forward.
-To call a addon, use this format:
-{{ addon_name(argument_name: 'value') }}
+## Addons
+Addons are called at any time during the conversation to save the patient's responses or move the conversation forward.
+To call a addon, use this format: {{ addon_name(argument_name: 'value') }}
 Example with a addon:
 \`\`\`
 assistant: What is your name?
@@ -30,6 +31,9 @@ assistant: {{ save_name(name: 'John') }} Thank you. How can I help you today?
 #### addon {{ go_to_schedule_appointment() }}
 Send the patient to the next step to schedule an appointment.
 Call this addon when you have 95% confidence about the appointment type, speciality wanted, and urgency level.
+
+#### addon {{ change_step(step_name: String) }}
+Change the current step to the specified step. Possible values: 'greet_patient', 'discover_appointment_type', 'discover_the_medical_speciality', 'discover_the_urgency', 'schedule_appointment'.
 `
 
 const FUNCTIONS = {
@@ -53,19 +57,19 @@ Possible values: 1, 2, 3, 4, 5
 
 const STEPS = {
   greet_patient: {
-    objective: 'You are on suggested step 1. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
+    objective: 'You are on step greet_patient. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
     addons: []
   },
   discover_appointment_type: {
-    objective: 'You are on suggested step 2. Focus on determining the appointment type. Call the addon {{ save_appointment_type(type: String) }} once you have enough data.',
+    objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Call the addon {{ save_appointment_type(type: String) }} once you have enough data.',
     addons: [FUNCTIONS.save_appointment_type]
   },
   discover_the_medical_speciality: {
-    objective: `You are on suggested step 3. Focus on determining the medical speciality the patient wants. Once you have enough data to determine the speciality, call the addon {{ save_speciality_wanted(speciality: String) }}.`,
+    objective: `You are on step discover_the_medical_speciality. Focus on determining the medical speciality the patient wants. Once you have enough data to determine the speciality, call the addon {{ save_speciality_wanted(speciality: String) }}.`,
     addons: [FUNCTIONS.save_speciality_wanted]
   },
   discover_the_urgency: {
-    objective: `You are on suggested step 4. Focus on assessing the patient's symptoms and determining the urgency of the situation. Once you have enough data to determine the urgency, call the addon {{ save_esi_level(esi_level: Number) }}`,
+    objective: `You are on step discover_the_urgency. Focus on assessing the patient's symptoms and determining the urgency of the situation. Once you have enough data to determine the urgency, call the addon {{ save_esi_level(esi_level: Number) }}`,
     addons: [FUNCTIONS.save_esi_level]
   }
 }
@@ -126,6 +130,12 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
       } else {
         return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
       }
+    }
+
+    if (agentRun.functions?.change_step) {
+      this.workflowUser = await this.workflowUser.updateOne(this.workflowUser, { current_step: agentRun.functions.change_step.arguments.step_name });
+      await this.deleteThreadRun();
+      return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
     }
 
     return agentRun;
