@@ -22,12 +22,10 @@ module.exports = {
     Object.keys(fieldToExtract).forEach((field) => {
       fieldsWithExplanation[`${field}_chain_of_thought`] = {
         type: 'text',
-        description: `The user's chain of thought that led to the conclusion about: ${field}.`
+        description: `The user's chain of thought that led to the conclusion about: ${field}. Can be blank if the user didn't provide any context.`
       }
       fieldsWithExplanation[field] = fieldToExtract[field];
     });
-
-    console.debug('[dataExtractor] fieldsWithExplanation', JSON.stringify(fieldsWithExplanation, null, 2));
 
     const messages = [
       {
@@ -49,17 +47,14 @@ module.exports = {
         }
       }).filter(m => m)
     ]
-    console.debug('[dataExtractor] messages', JSON.stringify(messages, null, 2));
-
-    const response = await completionCall(messages);
+    const response = await completionCall(messages, { temperature: 0 });
 
     console.debug('[dataExtractor] response', JSON.stringify(response, null, 2));
 
     const cleanedResponse = {}
     Object.keys(response).forEach((field) => {
       if (field.endsWith('_chain_of_thought')) { return; }
-      if (!response[field] || !response[`${field}_chain_of_thought`]) { return }
-      
+      if (!(field in response) || !response[`${field}_chain_of_thought`]) { return }
       if (INVALID_VALUES.includes(response[field])) { return }
 
       cleanedResponse[field] = response[field];

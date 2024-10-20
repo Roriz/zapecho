@@ -5,7 +5,6 @@ class WorkflowUser extends BaseModel {
 
   async addAnswerData(data) {
     if (Object.keys(data).length === 0) return this;
-    console.debug(JSON.stringify({ code: 'workflow_user_add_answer', data }));
 
     const workflowUser = await queryBuilder(WorkflowUser).updateOne(this, {
       answers_data: {

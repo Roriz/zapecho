@@ -55,7 +55,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
       ${BASE_PROMPT}
 
       ## Best suggested appointment times
-      ${this.#bestSuggestedAppointmentTimes().map(d => `- ${d}`).join('\n')}
+      ${(await this.#bestSuggestedAppointmentTimes()).map(d => `- ${d}`).join('\n')}
       `
 
       this.agentRunParams = await this.threadRun(prompt);

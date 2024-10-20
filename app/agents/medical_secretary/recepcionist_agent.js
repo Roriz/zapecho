@@ -2,8 +2,6 @@ const pick = require('lodash/pick');
 const { BaseAgent } = require('~/agents/base_agent.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
 
-const HOSPITAL_ESI_LEVELS = ['1', '2'];
-const SPECIALITIES = ['Internal Medicine', 'Cardiology', 'Dermatology', 'Pediatrics', 'Obstetrics and Gynecology', 'General Surgery', 'Orthopedics', 'Neurology', 'Psychiatry', 'Oncology', 'other', 'not medical'];
 const BASE_PROMPT = `
 You are a medical secretary assisting a specific doctor. You will create the next template message that will be compiled and send to the patient. The template can include variables and addons to enhance the conversation.
 Help patients determine if their symptoms match the doctor's specialty.
@@ -15,8 +13,8 @@ patient and user are interchangeable terms.
 You do not need to follow these steps in order. Use your judgment to guide the conversation. But here are suggested order of steps:
 1. greet_patient: Introduce the doctor and offer to answer any questions.
 2. discover_appointment_type: Check if the patient is seeking an initial or follow-up appointment.
-3. discover_the_medical_speciality: Ask questions to understand their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the needed specialty.
-4. discover_the_urgency: Ask questions to assess the urgency. Gather enough information without overwhelming the patient. Make a fair guess about whether the patient needs hospital care.
+3. discover_if_could_potentially_be_treated: Ask questions to understand their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the speciality that can treat them.
+4. discover_is_life_threatening: Ask questions to assess the urgency based on their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the urgency of the situation.
 5. schedule_appointment: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling.
 
 ## Addons
@@ -31,63 +29,23 @@ assistant: {{ save_name(name: 'John') }} Thank you. How can I help you today?
 
 `
 
-const DATA_TO_EXTRACT = {
-  appointment_type: {
-    type: 'string',
-    description: 'The type of appointment the patient is looking for. Possible values: initial, follow-up',
-    enum: ['initial', 'follow-up']
-  },
-  looking_for_what_speciality: {
-    type: 'string',
-    description: `The speciality the patient is looking for`,
-    enum: SPECIALITIES
-  },
-  esi_level: {
-    type: 'number',
-    description: `The ESI (Emergency Severity Index) level of the patient's symptoms.
-    - Level 1 (Immediate): Life-threatening emergencies needing immediate care, such as cardiac arrest, severe trauma, or respiratory failure.
-    - Level 2 (Emergent): Urgent conditions that are not immediately life-threatening, like chest pain, shortness of breath, or severe infections.
-    - Level 3 (Urgent): Serious conditions that can wait a short time without immediate risk to life, such as moderate pain or injuries.
-    - Level 4 (Less Urgent): Minor issues like small cuts or mild symptoms, which can be managed with some delay.
-    - Level 5 (Non-Urgent): Routine or mild issues like prescription refills or minor ailments that do not require immediate care.
-    `,
-    enum: [1, 2, 3, 4, 5]
-  },
-}
-
-const STEPS = {
-  greet_patient: {
-    objective: 'You are on step greet_patient. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
-    dataToExtract: {}
-  },
-  discover_appointment_type: {
-    objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Once you have enough data to determine the type, call the addon {{ save_data(appointment_type: string) }}',
-    dataToExtract: { appointment_type: DATA_TO_EXTRACT.appointment_type }
-  },
-  discover_the_medical_speciality: {
-    objective: `You are on step discover_the_medical_speciality. Focus on determining the medical speciality the patient wants. Once you have enough data to determine the speciality, call the addon {{ save_data(looking_for_what_speciality: string) }}`,
-    dataToExtract: { looking_for_what_speciality: DATA_TO_EXTRACT.looking_for_what_speciality }
-  },
-  discover_the_urgency: {
-    objective: `You are on step discover_the_urgency. Focus on assessing the patient's symptoms and determining the urgency of the situation. Once you have enough data to determine the urgency, call the addon {{ save_data(esi_level: Number) }}`,
-    dataToExtract: { esi_level: DATA_TO_EXTRACT.esi_level }
-  }
-}
-
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   async run() {
+    this.client = await this.client();
+
     if (this.#agentCompleted()) { return this.goToStatus('schedule_appointment'); }
 
     this.workflowUser = await this.#setCurrentStep();
     
-    if (this.workflowUser.current_step_messages_count > 1) {
+    if (this.workflowUser.current_step_messages_count >= 1) {
       const missingData = this.#missingDataToExtract();
       this.workflowUser = await this.extractData(missingData);
+      this.workflowUser = await this.#setCurrentStep();
     }
 
     if (this.answerData.appointment_type === 'follow-up') { return this.goToStatus('schedule_appointment'); }
-    if ('looking_for_what_speciality' in this.answerData && !(await this.#speciality_requested_and_client_match())) { return this.goToStatus('not_icp'); }
-    if (HOSPITAL_ESI_LEVELS.includes(this.answerData.esiLevel)) { return this.goToStatus('too_urgent'); }
+    if ('could_potentially_be_treated' in this.answerData && !this.answerData.could_potentially_be_treated) { return this.goToStatus('not_icp'); }
+    if ('is_life_threatening' in this.answerData && !this.answerData.is_life_threatening) { return this.goToStatus('too_urgent'); }
 
     this.agentRunParams = await this.threadRun(this.#prompt());
     let agentRun = await this.createAgentRun(this.agentRunParams);
@@ -115,41 +73,39 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   #setCurrentStep() {
     if (!this.workflowUser.current_step) {
       return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'greet_patient' });
-    } else if ('appointment_type' in this.answerData && 'looking_for_what_speciality' in this.answerData) {
-      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_the_urgency' });
+    } else if ('appointment_type' in this.answerData && 'could_potentially_be_treated' in this.answerData) {
+      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_is_life_threatening' });
     } else if ('appointment_type' in this.answerData) {
-      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_the_medical_speciality' });
+      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_if_could_potentially_be_treated' });
     }
 
     return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_appointment_type' });
   }
 
   #prompt() {
-    return `
-    ${BASE_PROMPT}
-    addons available:
-    
-    ${this.#saveDataAddonPrompt()}
-    
-    #### addon {{ go_to_schedule_appointment() }}
-    Send the patient to the next step to schedule an appointment.
-    Call this addon when you have 95% confidence about the ${Object.keys(DATA_TO_EXTRACT).join(', ')} have been extracted.
+    return `${BASE_PROMPT}
+addons available:
 
-    #### addon {{ change_step(step_name: String) }}
-    Change the current step to the specified step. Possible values: ${Object.keys(STEPS).join(', ')}
-    Call {{ change_step(step_name: String) }} if the conversation is not aligned with the objective.
+${this.#saveDataAddonPrompt()}
 
-    ### Objective
-    ${this.#step.objective}
-    `
+#### addon {{ go_to_schedule_appointment() }}
+Send the patient to the next step to schedule an appointment.
+Call this addon when you have 95% confidence about the ${Object.keys(this.#allDataToExtract).join(', ')} have been extracted.
+
+#### addon {{ change_step(step_name: String) }}
+Change the current step to the specified step. Possible values: ${Object.keys(this.#steps).join(', ')}
+Call {{ change_step(step_name: string) }} if the conversation is not aligned with the objective.
+
+### Objective
+${this.#step.objective}`
   }
-
+  
   get #step() {
-    return STEPS[this.workflowUser.current_step];
+    return this.#steps[this.workflowUser.current_step];
   }
 
   #agentCompleted() {
-    return this.#missingDataToExtract().length === 0;
+    return Object.keys(this.#allDataToExtract).every(key => key in this.answerData);
   }
 
   #missingDataToExtract() {
@@ -171,15 +127,47 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     }
 
     return `#### addon {{ save_data(${args.join(', ')}) }}
-    Save the data extracted from the patient's response. Use the following arguments:
-    ${descriptions.join('\n')}
-    `
+Save the data extracted from the patient's response. Use the following arguments:
+${descriptions.join('\n')}`
   }
 
-  async #speciality_requested_and_client_match() {
-    const client = await this.client();
+  get #allDataToExtract() {
+    return {
+      appointment_type: {
+        type: 'string',
+        description: 'The type of appointment the patient is looking for. Possible values: initial, follow-up',
+        enum: ['initial', 'follow-up']
+      },
+      could_potentially_be_treated: {
+        type: 'boolean',
+        description: `The patient's symptoms could potentially be treated by any of specialities: ${this.client.metadata?.specialities.join(', ')}.`
+      },
+      is_life_threatening: {
+        type: 'boolean',
+        description: `The patient's symptoms are life-threatening.`
+      },
+    }
+  }
 
-    return client.metadata?.specialities.includes(this.answerData.looking_for_what_speciality);
+  get #steps() {
+    return {
+      greet_patient: {
+        objective: 'You are on step greet_patient. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
+        dataToExtract: {}
+      },
+      discover_appointment_type: {
+        objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Once you have enough data to determine the type, call the addon {{ save_data(appointment_type: string) }}',
+        dataToExtract: { appointment_type: this.#allDataToExtract.appointment_type }
+      },
+      discover_if_could_potentially_be_treated: {
+        objective: `You are on step discover_if_could_potentially_be_treated. Focus on determining the doctor with the specialities: ${this.client.metadata?.specialities.join(', ')} that can treat the patient's in any level. Once you have 95% confidence about the speciality, call the addon {{ save_data(could_potentially_be_treated: boolean) }}`,
+        dataToExtract: { could_potentially_be_treated: this.#allDataToExtract.could_potentially_be_treated }
+      },
+      discover_is_life_threatening: {
+        objective: `You are on step discover_is_life_threatening. Focus on assessing the patient's symptoms and determining if they are life-threatening. Once you have 95% confidence about the urgency, call the addon {{ save_data(is_life_threatening: boolean) }}`,
+        dataToExtract: { is_life_threatening: this.#allDataToExtract.is_life_threatening }
+      }
+    }
   }
 }
 

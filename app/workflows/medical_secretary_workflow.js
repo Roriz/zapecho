@@ -49,10 +49,10 @@ const DATA_TO_EXTRACT = {
     type: 'boolean',
     description: `User ask explicitly to stop the conversation like: "I don't want to talk anymore" or "Stop talking to me" or similar. Be careful with litotes and sarcasm.`
   },
-  message_is_irrelevant: {
-    type: 'boolean',
-    description: `Return true if the message does not add value to a conversation with a medical secretary. The conversation may involve health, appointments, payments, confirmations, or clinic information.  Be careful with litotes and sarcasm.`
-  }
+  // message_is_irrelevant: {
+  //   type: 'boolean',
+  //   description: `Return true if the message does not add value to a conversation with a medical secretary. The conversation may involve health, appointments, payments, confirmations, or clinic information.  Be careful with litotes and sarcasm.`
+  // }
   // TODO: create a blocklist of topics
 }
 

@@ -54,7 +54,7 @@ module.exports = {
         ${possibleDates.map(isoDate => {
           const [date, time] = isoDate.toISOString().split('T');
           const [hour, minute] = time.split(':');
-          const weekDay = date.toLocaleDateString('en-US', { weekday: 'long' });
+          const weekDay = isoDate.toLocaleDateString('en-US', { weekday: 'long' });
           return `- ${date} ${hour}:${minute} (${weekDay})`
         }).join('\n')}
         `
@@ -63,6 +63,7 @@ module.exports = {
 
     const response = await completionCall(messages);
 
+    console.debug('[bestDateTimeRepository] response', JSON.stringify(response, null, 2));
     return response.map(d => d.date_time);
   }
 }

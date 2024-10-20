@@ -37,6 +37,10 @@ module.exports = async function extract_data_service(workflowUser, data_to_extra
       ...DATA_TO_EXTRACT,
     });
   }
+  console.debug('[extract_data_service] extractedData', JSON.stringify(extractedData, null, 2));
+
+  delete extractedData.message_is_a_litote;
+  delete extractedData.message_litote_true_meaning;
 
   if (extractedData) {
     return workflowUser.addAnswerData(extractedData)
