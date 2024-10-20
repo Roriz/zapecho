@@ -1,12 +1,15 @@
 const Message = require('~/models/message.js');
 const WorkflowUser = require('~/models/workflow_user.js');
+const ClientsAssistants = require('~/models/clients_assistant.js');
 
-const { sendWhatsappMessage } = require('~/repositories/whatsapp_repository.js');
+const { whatsappPostMessage } = require('~/repositories/whatsapp_repository.js');
 const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
+const { addStatiticsService } = require('~/services/workflow_users/add_statitics_service.js');
 
 async function whatsappSendService(messageParams) {
   const workflowUser = await WorkflowUser().findOne('id', messageParams.workflow_user_id);
-  
+  const assistant = await ClientsAssistants().findOne('client_id', workflowUser.client_id);
+
   const message = await Message().insert({
     sender_type: 'agent',
     user_id: workflowUser.user_id,
@@ -15,6 +18,8 @@ async function whatsappSendService(messageParams) {
     workflow_user_id: messageParams.workflow_user_id,
     channel_id: messageParams.channel_id,
     body: messageParams.body,
+    header: `${assistant.assistant_name}:`,
+    footer: `${workflowUser.status} - ${workflowUser.current_step}`,
     openai_id: messageParams.openai_message_id,
   });
   if (messageParams.image) {
@@ -25,8 +30,8 @@ async function whatsappSendService(messageParams) {
       storage_blob_id: messageParams.image.storage_blob_id
     })
   }
-
-  const response = await sendWhatsappMessage(message)
+  await addStatiticsService(workflowUser);
+  const response = await whatsappPostMessage(message)
 
   await Message().where('id', message.id).update({
     whatsapp_id: response.messages[0].id,

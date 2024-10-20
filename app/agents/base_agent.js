@@ -1,6 +1,7 @@
 const Clients = require('~/models/client.js');
 const AgentRuns = require('~/models/agent_run.js');
 const ClientsAssistants = require('~/models/clients_assistant.js');
+const Messages = require('~/models/message.js');
 
 const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 const { threadRun, deleteThreadMessage } = require('~/repositories/openai_repository.js');
@@ -22,6 +23,11 @@ class BaseAgent {
 
   get answerData() {
     return this.workflowUser.answers_data;
+  }
+
+  async totalMessagesCount() {
+    const response = await Messages().where('workflow_user_id', this.workflowUser.id).count();
+    return response[0].count;
   }
 
   client() {
@@ -91,6 +97,8 @@ class BaseAgent {
   }
 
   async extractData(dataToExtract) {
+    if(Object.keys(dataToExtract || {}).length === 0) { return this.workflowUser; }
+
     this.workflowUser = await ExtractDataService(this.workflowUser, dataToExtract);
     
     return this.workflowUser;

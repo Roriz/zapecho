@@ -16,6 +16,10 @@ class WorkflowUser extends BaseModel {
 
     return workflowUser;
   }
+
+  get current_step_messages_count() {
+    return this.statistics[`messages_${this.current_step}_count`] || 0;
+  }
 }
 const WorkflowUsersQuery = () => queryBuilder(WorkflowUser);
 

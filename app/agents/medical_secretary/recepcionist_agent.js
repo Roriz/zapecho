@@ -34,12 +34,12 @@ assistant: {{ save_name(name: 'John') }} Thank you. How can I help you today?
 const DATA_TO_EXTRACT = {
   appointment_type: {
     type: 'string',
-    description: 'The type of appointment the patient is looking for.',
+    description: 'The type of appointment the patient is looking for. Possible values: initial, follow-up',
     enum: ['initial', 'follow-up']
   },
   looking_for_what_speciality: {
     type: 'string',
-    description: 'The speciality the patient is looking for.',
+    description: `The speciality the patient is looking for`,
     enum: SPECIALITIES
   },
   esi_level: {
@@ -61,11 +61,11 @@ const STEPS = {
     dataToExtract: {}
   },
   discover_appointment_type: {
-    objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Once you have enough data to determine the type, call the addon {{ save_data(appointment_type: String) }}',
+    objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Once you have enough data to determine the type, call the addon {{ save_data(appointment_type: string) }}',
     dataToExtract: { appointment_type: DATA_TO_EXTRACT.appointment_type }
   },
   discover_the_medical_speciality: {
-    objective: `You are on step discover_the_medical_speciality. Focus on determining the medical speciality the patient wants. Once you have enough data to determine the speciality, call the addon {{ save_data(looking_for_what_speciality: String) }}`,
+    objective: `You are on step discover_the_medical_speciality. Focus on determining the medical speciality the patient wants. Once you have enough data to determine the speciality, call the addon {{ save_data(looking_for_what_speciality: string) }}`,
     dataToExtract: { looking_for_what_speciality: DATA_TO_EXTRACT.looking_for_what_speciality }
   },
   discover_the_urgency: {
@@ -80,14 +80,14 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
 
     this.workflowUser = await this.#setCurrentStep();
     
-    const missingData = this.#missingDataToExtract();
-    if (Object.keys(missingData).length) {
+    if (this.workflowUser.current_step_messages_count > 1) {
+      const missingData = this.#missingDataToExtract();
       this.workflowUser = await this.extractData(missingData);
     }
 
     if (this.answerData.appointment_type === 'follow-up') { return this.goToStatus('schedule_appointment'); }
-    if (!(await this.#speciality_requested_and_client_match())) { return this.goToStatus('not_icp'); }
-    if (HOSPITAL_ESI_LEVELS.includes(esiLevel)) { return this.goToStatus('too_urgent'); }
+    if ('looking_for_what_speciality' in this.answerData && !(await this.#speciality_requested_and_client_match())) { return this.goToStatus('not_icp'); }
+    if (HOSPITAL_ESI_LEVELS.includes(this.answerData.esiLevel)) { return this.goToStatus('too_urgent'); }
 
     this.agentRunParams = await this.threadRun(this.#prompt());
     let agentRun = await this.createAgentRun(this.agentRunParams);
@@ -97,7 +97,8 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     }
 
     if (agentRun.functions?.save_data) {
-      this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions.save_data);
+      const missingData = this.#missingDataToExtract();
+      this.workflowUser = await this.extractData(missingData);
       await this.deleteThreadRun();
       return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
     }
@@ -152,11 +153,11 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   }
 
   #missingDataToExtract() {
-    const keysToExtract = Object.keys(this.#step.dataToExtract);
+    const keysToExtract = Object.keys(this.#step?.dataToExtract || {});
     const keysExtracted = Object.keys(this.answerData);
 
     const missingKeys = keysToExtract.filter(key => !keysExtracted.includes(key));
-    return pick(this.#step.dataToExtract, missingKeys);
+    return pick(this.#step?.dataToExtract, missingKeys);
   }
 
   #saveDataAddonPrompt() {

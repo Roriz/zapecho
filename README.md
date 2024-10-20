@@ -1,24 +1,14 @@
-# Getting Started with [Fastify-CLI](https://www.npmjs.com/package/fastify-cli)
-
-This project was bootstrapped with Fastify-CLI.
-
-## Available Scripts
-
-In the project directory, you can run:
-
-### `npm run dev`
-
-To start the app in dev mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-### `npm start`
-
-For production mode
-
-### `npm run test`
-
-Run the test cases.
-
-## Learn More
-
-To learn Fastify, check out the [Fastify documentation](https://fastify.dev/docs/latest/).
+# TODO
+- add header and footer on whatsapp
+- text step migration on recepcionist agent
+- replicate recepcionist agent addons on sheduler agent
+- Variáveis anti hallucinations 
+- Conselho de revisão da mensagem
+- Integração com um sistema de agenda
+- Indicacao do local
+- produtos ou servico
+- Envio de arquivos
+- CRM - mensagem antes do evento relembrando - confirmando
+- coletar dados do paciente antes do agendamento
+- mandar mensagem para o medico perguntando coisas
+- reshedule agent

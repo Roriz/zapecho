@@ -12,7 +12,7 @@ const DEFAULT_HEADERS = {
   Authorization: `Bearer ${PERMANENT_TOKEN}`,
 };
 
-const sendWhatsappMessage = async (message) => {
+const whatsappPostMessage = async (message) => {
   const user = await Users().findOne('id', message.user_id);
 
   const params = {
@@ -23,7 +23,13 @@ const sendWhatsappMessage = async (message) => {
   }
 
   if (message.message_type === 'text') {
-    params.text = { body: message.body };
+    params.text = {
+      body: `*${message.header}*
+${message.body}
+
+-------
+\`${message.footer}\``,
+    };
   } else if (message.message_type === 'image') {
     const messageAttachment = await StorageAttachments().where({
       storable_type: 'message',
@@ -90,4 +96,4 @@ const downloadMedia = async (mediaId) => {
   };
 };
 
-module.exports = { sendWhatsappMessage, downloadMedia };
+module.exports = { whatsappPostMessage, downloadMedia };
