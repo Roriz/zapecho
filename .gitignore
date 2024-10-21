@@ -63,3 +63,5 @@ attachs
 
 .env.*
 blobs/*.jpeg
+
+credentials/*.json
