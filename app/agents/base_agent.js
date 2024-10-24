@@ -15,9 +15,15 @@ class BaseAgent {
   constructor(workflowUser) {
     this.workflowUser = workflowUser;
     this.agentRunParams = undefined
+    this.client = undefined
+    this.assistant = undefined
   }
 
-  run() {}
+  async run() {
+    this.client = await Clients().findOne('id', this.workflowUser.client_id);
+    // TODO: support multiple assistants per client
+    this.assistant = await ClientsAssistants().findOne('client_id', this.workflowUser.client_id);
+  }
   
   // Support methods
 
@@ -28,15 +34,6 @@ class BaseAgent {
   async totalMessagesCount() {
     const response = await Messages().where('workflow_user_id', this.workflowUser.id).count();
     return response[0].count;
-  }
-
-  client() {
-    return Clients().findOne('id', this.workflowUser.client_id);
-  }
-
-  // TODO: support multiple assistants per client
-  assistant() {
-    return ClientsAssistants().findOne('client_id', this.workflowUser.client_id);
   }
 
   goToStatus(next_status) {
@@ -68,11 +65,36 @@ class BaseAgent {
   async threadRun(prompt) {
     this.agentRunParams = await threadRun(
       this.workflowUser.openai_thread_id,
-      (await this.assistant()).openai_id,
+      this.assistant.openai_id,
       prompt
     );
 
-    return this.agentRunParams;
+    const agentRun = await this.createAgentRun(this.agentRunParams);
+    agentRun.message_body = this.compileMessageBody(agentRun.message_body);
+
+    return agentRun;
+  }
+
+  compileMessageBody(messageBody) {
+    let compiledMessageBody = messageBody;
+
+    const contextVariables = {
+      client_name: this.client.name,
+      clinic_address: this.client.metadata?.address,
+      clinic_phone: this.client.metadata?.phone,
+      clinic_website: this.client.metadata?.website,
+      assistant_name: this.assistant.assistant_name,
+    };
+    
+    Object.keys(contextVariables).forEach(key => {
+      if (!contextVariables[key]) { return; }
+
+      compiledMessageBody = compiledMessageBody.replaceAll(
+        `{{ ${key} }}`, contextVariables[key]
+      ).replaceAll(`{{${key}}}`, contextVariables[key]).trim();
+    })
+
+    return compiledMessageBody
   }
 
   async deleteRunAndGoToStatus(next_status) {

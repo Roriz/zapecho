@@ -23,7 +23,7 @@ const Workflows = require('~/models/workflow.js');
       findable_message: 'Ginecolizar!',
       first_workflow_id: medicalSecretary.id,
       metadata: {
-        specialties: ['Obstetrics and Gynecology'],
+        specialities: ['Obstetrics and Gynecology'],
       },
     });
     

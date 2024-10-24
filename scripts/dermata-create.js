@@ -23,7 +23,7 @@ const Workflows = require('~/models/workflow.js');
       findable_message: 'Deternatizar!',
       first_workflow_id: medicalSecretary.id,
       metadata: {
-        specialties: ['Dermatology'],
+        specialities: ['Dermatology'],
       },
     });
     

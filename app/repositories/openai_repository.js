@@ -20,18 +20,33 @@ function openaiSDK() {
 function _extract_functions(message) {
   if (!message) return {};
 
-  const calls = message.match(/{{\s*(.*?)\s*}}/) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
+  const calls = message.match(/{{\s*(.+)\s*}}/g) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
   const functions = calls.map(call => {
-    const [_, name, raw_arguments] = call.match(/(\w+)\((.*?)\)/); // _, example_function, arg1: 'a', arg2: ['c', 'd']
-    
+    let [_, name, raw_arguments] = call.match(/(\w+)\((.*?)\)/); // _, example_function, arg1: 'a', arg2: ['c', 'd']
+
+    if (!name) { return }
+
     let arguments
     // FIXME: remove this unsafe eval for some more complex parsing
     eval(`arguments = {${raw_arguments}}`) // { arg1: 'a', arg2: ['c', 'd'] }
-    
-    return [name, { name, arguments, raw: call }];
-  }); // [['example_function', { name: 'example_function', arguments: { arg1: 'a', arg2: ['c', 'd'] }, raw: '{{ example_function(arg1: 'a', arg2: ['c', 'd']) }}']]
 
-  return fromPairs(functions); // { example_function: { name: 'example_function', arguments: { arg1: 'a', arg2: ['c', 'd'] }, raw: '{{ example_function(arg1: 'a', arg2: ['c', 'd']) }}' } }
+    return [name, { name, arguments, raw: call }];
+  }).filter(Boolean); // [['example_function', { name: 'example_function', arguments: { arg1: 'a', arg2: ['c', 'd'] } ]]
+
+  return fromPairs(functions); // { example_function: { name: 'example_function', arguments: { arg1: 'a', arg2: ['c', 'd'] } } }
+}
+
+function _extract_variables(message) {
+  if (!message) return {};
+
+  const calls = message.match(/{{\s*(\w+)\s*}}/g) || []; // {{ example_variable }}
+  const variables = calls.map(call => {
+    let [_, name] = call.match(/\w+/); // _, example_variable
+
+    return [name, { name, raw: call }];
+  }); // [['example_variable', { name: 'example_variable', raw: '{{ example_variable }}' }]]
+
+  return fromPairs(variables); // { example_variable: { name: 'example_variable' } } }
 }
 
 async function threadRun(thread_id, assistant_id, prompt) {
@@ -63,15 +78,14 @@ async function threadRun(thread_id, assistant_id, prompt) {
 
   console.debug('[openai][threadRun] agentRunParams:', agentRunParams)
   
-  const functions = _extract_functions(agentRunParams.message_body);
-  if (!isEmpty(functions)) {
-    agentRunParams.functions = functions;
-    Object.values(functions).forEach(f => {
-      agentRunParams.message_body = agentRunParams.message_body.replaceAll(
-        `{{ ${f.raw} }}`, ''
-      ).replaceAll(`{{${f.raw}}}`, '').trim();
-    })
-  }
+  agentRunParams.functions = _extract_functions(agentRunParams.message_body);
+  Object.values(agentRunParams.functions).forEach(f => {
+    agentRunParams.message_body = agentRunParams.message_body.replaceAll(
+      `{{ ${f.raw} }}`, ''
+    ).replaceAll(`{{${f.raw}}}`, '').trim();
+  })
+
+  agentRunParams.variables = _extract_variables(agentRunParams.message_body);
 
   return agentRunParams;
 }

@@ -3,35 +3,23 @@ const { BaseAgent } = require('~/agents/base_agent.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
 
 const BASE_PROMPT = `
-You are a medical secretary assisting a specific doctor. You will create the next template message that will be compiled and send to the patient. The template can include variables and addons to enhance the conversation.
-Help patients determine if their symptoms match the doctor's specialty.
-Gather relevant information about their symptoms and preferences to determine if the doctor can treat them.
-Do not suggest other doctors or services if their symptoms don't match the doctor's specialty.
-patient and user are interchangeable terms.
+You are a medical secretary. Responsible for managing and responding to the clinic's digital communication channel. Your role is to write the most effective template message to convert a potential patient into an actual patient or to improve the patient experience.
+
+# Journey
+The patient is in the early stages of their journey. Your goal is to guide them from the start of the conversation to scheduling an appointment.
 
 ## Suggested Steps
-You do not need to follow these steps in order. Use your judgment to guide the conversation. But here are suggested order of steps:
+You do not need to follow these steps in order. Use your judgment to guide the conversation. Here is the suggested order of steps:
 1. greet_patient: Introduce the doctor and offer to answer any questions.
 2. discover_appointment_type: Check if the patient is seeking an initial or follow-up appointment.
-3. discover_if_could_potentially_be_treated: Ask questions to understand their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the speciality that can treat them.
-4. discover_is_life_threatening: Ask questions to assess the urgency based on their symptoms. Gather enough information without overwhelming the patient. Make a fair guess about the urgency of the situation.
-5. schedule_appointment: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling.
-
-## Addons
-Addons are called at any time during the conversation to save the patient's responses or move the conversation forward.
-To call a addon, use this format: {{ addon_name(argument_name: 'value') }}
-Example with a addon:
-\`\`\`
-assistant: What is your name?
-user: John
-assistant: {{ save_name(name: 'John') }} Thank you. How can I help you today?
-\`\`\`
-
+3. discover_if_could_potentially_be_treated: Ask questions to understand their symptoms. Gather enough information to determine the appropriate specialty without overwhelming the patient.
+4. discover_is_life_threatening: Ask questions to assess the urgency of the symptoms. Gather enough information to determine the urgency without overwhelming the patient.
+5. schedule_appointment: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling
 `
 
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   async run() {
-    this.client = await this.client();
+    await super.run();
 
     if (this.#agentCompleted()) { return this.goToStatus('schedule_appointment'); }
 
@@ -45,26 +33,28 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
 
     if (this.answerData.appointment_type === 'follow-up') { return this.goToStatus('schedule_appointment'); }
     if ('could_potentially_be_treated' in this.answerData && !this.answerData.could_potentially_be_treated) { return this.goToStatus('not_icp'); }
-    if ('is_life_threatening' in this.answerData && !this.answerData.is_life_threatening) { return this.goToStatus('too_urgent'); }
+    if (this.answerData.is_life_threatening) { return this.goToStatus('too_urgent'); }
 
-    this.agentRunParams = await this.threadRun(this.#prompt());
-    let agentRun = await this.createAgentRun(this.agentRunParams);
+    const agentRun = await this.threadRun(this.#prompt());
 
     if (agentRun.functions?.go_to_schedule_appointment) {
       return this.goToStatus('schedule_appointment');
     }
 
     if (agentRun.functions?.save_data) {
-      const missingData = this.#missingDataToExtract();
-      this.workflowUser = await this.extractData(missingData);
+      this.workflowUser = await this.extractData(agentRun.functions?.save_data.arguments);
       await this.deleteThreadRun();
       return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
     }
 
     if (agentRun.functions?.change_step) {
-      this.workflowUser = await this.workflowUser.updateOne(this.workflowUser, { current_step: agentRun.functions.change_step.arguments.step_name });
-      await this.deleteThreadRun();
-      return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
+      const newStep = agentRun.functions.change_step.arguments.step_name;
+
+      if (newStep in this.#steps) {
+        this.workflowUser = await this.workflowUser.updateOne(this.workflowUser, { current_step: newStep });
+        await this.deleteThreadRun();
+        return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
+      }
     }
 
     return agentRun;
@@ -84,15 +74,14 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
 
   #prompt() {
     return `${BASE_PROMPT}
-addons available:
-
+# Addons available:
 ${this.#saveDataAddonPrompt()}
 
 #### addon {{ go_to_schedule_appointment() }}
 Send the patient to the next step to schedule an appointment.
 Call this addon when you have 95% confidence about the ${Object.keys(this.#allDataToExtract).join(', ')} have been extracted.
 
-#### addon {{ change_step(step_name: String) }}
+#### addon {{ change_step(step_name: string) }}
 Change the current step to the specified step. Possible values: ${Object.keys(this.#steps).join(', ')}
 Call {{ change_step(step_name: string) }} if the conversation is not aligned with the objective.
 
@@ -160,7 +149,7 @@ ${descriptions.join('\n')}`
         dataToExtract: { appointment_type: this.#allDataToExtract.appointment_type }
       },
       discover_if_could_potentially_be_treated: {
-        objective: `You are on step discover_if_could_potentially_be_treated. Focus on determining the doctor with the specialities: ${this.client.metadata?.specialities.join(', ')} that can treat the patient's in any level. Once you have 95% confidence about the speciality, call the addon {{ save_data(could_potentially_be_treated: boolean) }}`,
+        objective: `You are on step discover_if_could_potentially_be_treated. Focus on determining the doctor with the specialities: ${this.client.metadata?.specialities?.join(', ') || 'general medicine'} that can treat the patient's in any level. Once you have 95% confidence about the speciality, call the addon {{ save_data(could_potentially_be_treated: boolean) }}`,
         dataToExtract: { could_potentially_be_treated: this.#allDataToExtract.could_potentially_be_treated }
       },
       discover_is_life_threatening: {

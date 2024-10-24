@@ -89,8 +89,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
     const doctorAvailabilities = this.#doctorAvailabilities(this.#scheduleDatetime());
     let requirements = this.answerData.user_schedule_appointment_requirements || [];
     
-    const client = await this.client();
-    requirements = [...requirements, client.metadata?.appointment_requirements || []];
+    requirements = [...requirements, this.client.metadata?.appointment_requirements || []];
     
     return bestDateTimeRepository(doctorAvailabilities, requirements);
   }
