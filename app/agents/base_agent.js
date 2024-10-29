@@ -20,6 +20,7 @@ class BaseAgent {
   }
 
   async run() {
+    console.info(`Running ${this.constructor.name} for workflow_user_id: ${this.workflowUser.id}`);
     this.client = await Clients().findOne('id', this.workflowUser.client_id);
     // TODO: support multiple assistants per client
     this.assistant = await ClientsAssistants().findOne('client_id', this.workflowUser.client_id);

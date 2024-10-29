@@ -27,8 +27,10 @@ function _extract_functions(message) {
     if (!name) { return }
 
     let arguments
-    // FIXME: remove this unsafe eval for some more complex parsing
-    eval(`arguments = {${raw_arguments}}`) // { arg1: 'a', arg2: ['c', 'd'] }
+    if (raw_arguments) {
+      // FIXME: remove this unsafe eval for some more complex parsing
+      eval(`arguments = {${raw_arguments}}`) // { arg1: 'a', arg2: ['c', 'd'] }
+    }
 
     return [name, { name, arguments, raw: call }];
   }).filter(Boolean); // [['example_function', { name: 'example_function', arguments: { arg1: 'a', arg2: ['c', 'd'] } ]]

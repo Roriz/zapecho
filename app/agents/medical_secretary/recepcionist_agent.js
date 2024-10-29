@@ -24,7 +24,9 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
 
     if (this.#agentCompleted()) { return this.goToStatus('schedule_appointment'); }
 
-    this.workflowUser = await this.#setCurrentStep();
+    if (!this.workflowUser.current_step) {
+      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'greet_patient' });
+    }
     
     if (this.workflowUser.current_step_messages_count >= 1) {
       const oldAnswerData = this.workflowUser.answer_data;
@@ -32,6 +34,7 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
       const newAnswerData = this.workflowUser.answer_data;
 
       if (oldAnswerData !== newAnswerData) {
+        this.workflowUser = this.#nextStep();
         return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
       }
     }
@@ -49,6 +52,7 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     if (agentRun.functions?.save_data) {
       this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
       await this.deleteThreadRun();
+      this.workflowUser = this.#nextStep();
       return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
     }
 
@@ -65,16 +69,15 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     return agentRun;
   }
 
-  #setCurrentStep() {
-    if (!this.workflowUser.current_step) {
-      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'greet_patient' });
-    } else if ('appointment_type' in this.answerData && 'could_potentially_be_treated' in this.answerData) {
-      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_is_life_threatening' });
+  async #nextStep() {
+    let nextStep = 'discover_appointment_type'
+    if ('appointment_type' in this.answerData && 'could_potentially_be_treated' in this.answerData) {
+      nextStep = 'discover_is_life_threatening';
     } else if ('appointment_type' in this.answerData) {
-      return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_if_could_potentially_be_treated' });
+      nextStep = 'discover_if_could_potentially_be_treated';
     }
 
-    return WorkflowUsers().updateOne(this.workflowUser, { current_step: 'discover_appointment_type' });
+    return await WorkflowUsers().updateOne(this.workflowUser, { current_step: nextStep });
   }
 
   #prompt() {
