@@ -76,6 +76,8 @@ async function threadRun(thread_id, assistant_id, prompt) {
 
   await run.finalRun();
 
+  if (!agentRunParams.openai_run_id) { threadRun(thread_id, assistant_id, prompt) }
+
   console.debug('[openai][threadRun] agentRunParams:', agentRunParams)
   
   agentRunParams.functions = _extract_functions(agentRunParams.message_body);

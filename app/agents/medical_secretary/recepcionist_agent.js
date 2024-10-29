@@ -1,9 +1,9 @@
-const pick = require('lodash/pick');
 const { BaseAgent } = require('~/agents/base_agent.js');
 const WorkflowUsers = require('~/models/workflow_user.js');
 
 const BASE_PROMPT = `
-You are a medical secretary. Responsible for managing and responding to the clinic's digital communication channel. Your role is to write the most effective template message to convert a potential patient into an actual patient or to improve the patient experience.
+You are a medical secretary. Responsible for managing and responding to the clinic's digital communication channel.
+Your role is to write the most effective template message to convert a potential patient into an actual patient or to improve the patient experience.
 
 # Journey
 The patient is in the early stages of their journey. Your goal is to guide them from the start of the conversation to scheduling an appointment.
@@ -17,6 +17,7 @@ You do not need to follow these steps in order. Use your judgment to guide the c
 5. schedule_appointment: Call the {{ go_to_schedule_appointment() }} addon to proceed with scheduling
 `
 
+// TODO: split between secretary and recepcionist. where secretary is the lead qualification and recepcionist is the one that point to the right agent
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
   async run() {
     await super.run();
@@ -26,9 +27,13 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     this.workflowUser = await this.#setCurrentStep();
     
     if (this.workflowUser.current_step_messages_count >= 1) {
-      const missingData = this.#missingDataToExtract();
-      this.workflowUser = await this.extractData(missingData);
-      this.workflowUser = await this.#setCurrentStep();
+      const oldAnswerData = this.workflowUser.answer_data;
+      this.workflowUser = await this.extractData(this.#step?.dataToExtract);
+      const newAnswerData = this.workflowUser.answer_data;
+
+      if (oldAnswerData !== newAnswerData) {
+        return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
+      }
     }
 
     if (this.answerData.appointment_type === 'follow-up') { return this.goToStatus('schedule_appointment'); }
@@ -42,7 +47,7 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     }
 
     if (agentRun.functions?.save_data) {
-      this.workflowUser = await this.extractData(agentRun.functions?.save_data.arguments);
+      this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
       await this.deleteThreadRun();
       return MedicalSecretaryRecepcionistAgent.run(this.workflowUser);
     }
@@ -79,7 +84,7 @@ ${this.#saveDataAddonPrompt()}
 
 #### addon {{ go_to_schedule_appointment() }}
 Send the patient to the next step to schedule an appointment.
-Call this addon when you have 95% confidence about the ${Object.keys(this.#allDataToExtract).join(', ')} have been extracted.
+Call this addon when you have confidence that the itemsÇ ${Object.keys(this.#allDataToExtract).join(', ')} has been defined.
 
 #### addon {{ change_step(step_name: string) }}
 Change the current step to the specified step. Possible values: ${Object.keys(this.#steps).join(', ')}
@@ -95,14 +100,6 @@ ${this.#step.objective}`
 
   #agentCompleted() {
     return Object.keys(this.#allDataToExtract).every(key => key in this.answerData);
-  }
-
-  #missingDataToExtract() {
-    const keysToExtract = Object.keys(this.#step?.dataToExtract || {});
-    const keysExtracted = Object.keys(this.answerData);
-
-    const missingKeys = keysToExtract.filter(key => !keysExtracted.includes(key));
-    return pick(this.#step?.dataToExtract, missingKeys);
   }
 
   #saveDataAddonPrompt() {

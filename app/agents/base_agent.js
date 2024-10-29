@@ -76,7 +76,7 @@ class BaseAgent {
   }
 
   compileMessageBody(messageBody) {
-    let compiledMessageBody = messageBody;
+    let compiledMessageBody = messageBody || '';
 
     const contextVariables = {
       client_name: this.client.name,

@@ -35,7 +35,7 @@ Return the top 3 best date and time options in the following structured JSON for
 `;
 
 module.exports = {
-  bestDateTimeRepository: async function bestDateTimeRepository(possibleDates, requirements) {
+  bestDateTimeRepository: async function bestDateTimeRepository(possibleDates, requirements = undefined) {
     const today = new Date().toISOString().split('T')[0]
     const weekDay = new Date().toLocaleDateString('en-US', { weekday: 'long' })
 
@@ -64,6 +64,9 @@ module.exports = {
     const response = await completionCall(messages);
 
     console.debug('[bestDateTimeRepository] response', JSON.stringify(response, null, 2));
-    return response.map(d => d.date_time);
+    return response.map((d) => {
+      const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
+      return `${d.date_time} (${weekDay})`
+    });
   }
 }

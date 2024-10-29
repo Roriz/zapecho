@@ -1,123 +1,161 @@
+const WorkflowUsers = require('~/models/workflow_user.js');
 const { BaseAgent } = require('~/agents/base_agent.js');
-const { bestDateTimeRepository } = require('~/repositories/openai/best_date_time_repository.js');
+const availableSlots = require('~/services/calendar/available_slots.js')
 
-const DATA_TO_EXTRACT = {
-  appointment_date_and_time: {
-    type: 'number',
-    description: 'The date and time the user wants to schedule the appointment. date and time entries in the format \`YYYY-MM-DD HH:MM\`'
-  },
-  appointment_confirmed: {
-    type: 'boolean',
-    description: 'The user confirms the appointment schedule date and time.',
-  },
-  appointment_preferences: {
-    type: 'array',
-    description: 'The user has any preferences for the appointment schedule date and time. E.g. "morning", "afternoon"',
-    items: { type: 'string' }
-  },
+const nextDay = (dateString = undefined) => {
+  const tomorrow = new Date(dateString);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0];
 }
-const WORKING_HOURS = [8, 12, 14, 18];
 
 const BASE_PROMPT = `
-**You are acting as a scheduler for a medical secretary.**
+You are a medical secretary. Responsible for managing and responding to the clinic's digital communication channel.
+Your role is to write the most effective template message to convert a potential patient into an actual patient or to improve the patient experience.
 
-### **Your Role**:
-- Match the user’s availability with the doctor’s schedule to book an appointment.
-- Confirm the appointment date and time with the user in a formal, professional manner.
-
-### **Suggested Steps**:
-1. **Receive the doctor's next available appointment slots** (date and time) and suggest 2 to 3 options to the user.
-   - Ensure the options cover different days and different times of the day (morning, afternoon, evening) to accommodate the user's preferences.
-2. If the user declines the suggested times, **ask for their preferred date and time**. Use the function \`check_availabilities_for(iso_date: string)\` to check availability on the specific date provided by the user.
-3. **Confirm the appointment** once a suitable date and time is agreed upon.
-
-### **Functions**:
-- \`check_availabilities_for(iso_date: string)\` - Use this function to check all available slots for a specific date. Ensure the date is in the format "YYYY-MM-DD".
-- \`save_appointment_preferences()\` - Save the user's preferences for the appointment schedule date and time. Common preferences include "morning", "afternoon", or any other preferences mentioned by the user.
-- \`save_sheduled_datetime()\` - Save the scheduled date and time agreed upon with the user.
-- \`save_appointment_confirmed()\` - Save if the user double-checked and confirmed the appointment date and time.
-
-### **Expected Happy Path**:
-- **Current step**: Find and suggest suitable appointment times for the user.
-- **Next step**: Start the payment process after confirming the appointment date and time.
+# Steps
+The suggested steps is to match the patient's availability with the doctor's schedule to book an appointment and confirm the appointment date and time.
+You do not need to follow these steps in order. Use your judgment to guide the conversation.
+Here is the suggested order of steps:
+1. Match the patient's availability with the doctor's schedule to book an appointment. Suggestions:
+  1.1. suggest_appointment_times: Suggest the two best available appointment times to the patient.
+  1.2. search_availabilities_for: Check the availability of the doctor for a specific date. 
+2. confirm_appointment: Confirm the appointment date and time.
+3. payment: call the {{ go_to_payment() }} addon to proceed with the payment process.
 `
 
 class MedicalSecretarySchedulerAgent extends BaseAgent {
   async run() {
-    if (this.answerData.appointment_date_and_time_has_been_confirmed && this.#scheduleDatetime()) {
-      return this.goToStatus('payment');
-    }
+    await super.run();
     
-    let agentRun = {}
-    do {
-      // FIXME: add the enduser timezone
-      const prompt = `
-      ${BASE_PROMPT}
+    if (this.#agentCompleted()) { return this.goToStatus('payment'); }
 
-      ## Best suggested appointment times
-      ${(await this.#bestSuggestedAppointmentTimes()).map(d => `- ${d}`).join('\n')}
-      `
+    this.workflowUser = await this.#setCurrentStep();
+    
+    if (this.workflowUser.current_step_messages_count >= 1) {
+      this.workflowUser = await this.extractData(this.#step?.dataToExtract);
 
-      this.agentRunParams = await this.threadRun(prompt);
-      agentRun = await this.createAgentRun(this.agentRunParams);
-      if (agentRun.functions?.check_availabilities_for) {
-        // TODO: send a mensage to the patient like: "Let me check the available times for next Friday"
-        await this.deleteThreadRun();
-        continue;
-      }
+      return MedicalSecretarySchedulerAgent.run(this.workflowUser);
+    }
 
-      if (agentRun.functions?.save_appointment_preferences) {
-        this.workflowUser = await this.extractData({ appointment_preferences: DATA_TO_EXTRACT.appointment_preferences });
-      }
-      if (agentRun.functions?.save_sheduled_datetime) {
-        this.workflowUser = await this.extractData({ appointment_date_and_time: DATA_TO_EXTRACT.appointment_date_and_time });
-      }
+    const agentRun = await this.threadRun(await this.#prompt());
 
-      if (agentRun.functions?.save_appointment_confirmed) {
-        this.workflowUser = await this.extractData({ appointment_confirmed: DATA_TO_EXTRACT.appointment_confirmed });
-      }
-
-      if (this.answerData.appointment_date_and_time_has_been_confirmed && this.#scheduleDatetime()) {
-        return this.goToStatus('payment');
-      }
-    } while (agentRun?.functions?.check_availabilities_for);
+    if (agentRun.functions?.go_to_payment) { return this.goToStatus('payment'); }
+    if (agentRun.functions?.save_data) {
+      this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
+      await this.deleteThreadRun();
+      return MedicalSecretarySchedulerAgent.run(this.workflowUser);
+    }
 
     return agentRun;
   }
-
-  async #bestSuggestedAppointmentTimes() {
-    const doctorAvailabilities = this.#doctorAvailabilities(this.#scheduleDatetime());
-    let requirements = this.answerData.user_schedule_appointment_requirements || [];
-    
-    requirements = [...requirements, this.client.metadata?.appointment_requirements || []];
-    
-    return bestDateTimeRepository(doctorAvailabilities, requirements);
+  
+  get #step() {
+    return this.#steps[this.workflowUser.current_step];
   }
 
-  // FIXME: add the enduser timezone
-  #scheduleDatetime() {
-    try {
-      return new Date(this.answerData.appointment_date_and_time);
-    } catch (error) {
-      return undefined;
+  #agentCompleted() {
+    return this.answerData.appointment_confirmed && this.answerData.appointment_date_and_time;
+  }
+
+  async #setCurrentStep() {
+    let nextStep = 'search_availabilities_for';
+    if (!this.workflowUser.current_step) {
+      nextStep = 'suggest_appointment_times';
+    } else if (this.answerData.appointment_date_and_time) {
+      nextStep = 'confirm_appointment';
+    } else if (this.answerData.appointment_search_date) {
+      nextStep = 'suggest_appointment_times';
     }
+
+    return await WorkflowUsers().updateOne(this.workflowUser, { current_step: nextStep });
+  }
+  
+  async #prompt() {
+    const prompt = `${BASE_PROMPT}
+# Addons available:
+${this.#saveDataAddonPrompt()}
+
+#### addon {{ go_to_payment() }}
+Send the patient to the next step to schedule an appointment.
+Call this addon when you have confidence that the items appointment_date_and_time has been defined.`
+
+    if (this.workflowUser.current_step == 'suggest_appointment_times') {
+      const baseDate = this.answerData.appointment_search_date || nextDay();
+      const slots = await availableSlots(this.workflowUser.client_id, baseDate, this.answerData.appointment_search_preference);
+
+      prompt += `\n### Available slots
+${slots.map(slot => `- ${slot}`).join('\n')}`
+    }
+
+    return `${prompt}\n${this.#step.objective}`
   }
 
-  // TODO: integrate with calendar service like Google Calendar
-  #doctorAvailabilities() {
-    return new Array(5).fill(0).map((_, i) => {
-      const d = new Date();
-      d.setDate(new Date().getDate() + i + 1)
-      d.setHours(0);
-      d.setMinutes(0);
-      d.setSeconds(0);
+  #saveDataAddonPrompt() {
+    if (!Object.keys(this.#step.dataToExtract).length) { return ''; }
+    
+    const args = [];
+    const descriptions = [];
+    for (const [key, value] of Object.entries(this.#step.dataToExtract)) {
+      args.push(`${key}?: ${value.type}`);
+      descriptions.push(`- ${key}: ${value.description}`);
+    }
 
-      return WORKING_HOURS.map(h => {
-        const dup_d = new Date(d.getTime());
-        dup_d.setHours(h);
-        return dup_d;
-      });
-    }).flat();
+    return `#### addon {{ save_data(${args.join(', ')}) }}
+Save the data extracted from the patient's response. Use the following arguments:
+${descriptions.join('\n')}`
+  }
+  
+  get #steps() {
+    return {
+      suggest_appointment_times: {
+        objective: `
+### Objective
+You are on step suggest_appointment_times.
+You will receive the two best available appointment times, and you should suggest them to the patient.
+If patient accepts the suggested time, call the addon {{ save_data(appointment_date_and_time: datetime) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
+`,
+        dataToExtract: { 
+          appointment_date_and_time: {
+            type: 'number',
+            description: 'The date and time the patient wants to schedule the appointment. date and time entries in the format \`YYYY-MM-DD HH:MM\`'
+          },
+          suggested_appointment_time_rejected: {
+            type: 'boolean',
+            description: 'The patient rejects the suggested appointment time.'
+          },
+        }
+      },
+      search_availabilities_for: {
+        objective: `
+### Objective
+You are on step search_availabilities_for.
+Ask the patient for a specific date and save the search_date with {{ save_data(appointment_search_date: datetime, appointment_search_preferences: string) }}
+Patient`,
+        dataToExtract: {
+          appointment_search_date: {
+            type: 'string',
+            description: 'The date the patient is looking for an appointment. date in the format `YYYY-MM-DD`'
+          },
+          appointment_search_preference: {
+            type: 'string',
+            description: 'The patient has any preferences for the appointment schedule date and time. E.g. "morning", "afternoon"',
+          },
+        }
+      },
+      confirm_appointment: {
+        objective: `
+### Objective
+You are on step confirm_appointment.
+You will receive the appointment date and time, and you should confirm it with the patient.
+After patient respond, call the addon {{ save_data(appointment_confirmed: boolean) }}.`,
+        dataToExtract: { 
+          appointment_confirmed: {
+            type: 'boolean',
+            description: 'The patient confirms the appointment schedule date and time.',
+          },
+         }
+      }
+    }
   }
 }
 
