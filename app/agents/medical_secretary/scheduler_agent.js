@@ -1,48 +1,67 @@
 const WorkflowUsers = require('~/models/workflow_user.js');
 const { BaseAgent } = require('~/agents/base_agent.js');
-const availableSlots = require('~/services/calendar/available_slots.js')
+const envParams = require('#/configs/env_params.js');
+const { availableSlots } = require('~/services/calendar/available_slots.js')
+const { createEvent } = require('~/repositories/google_calendar_repository.js')
 
 const nextDay = (dateString = undefined) => {
-  const tomorrow = new Date(dateString);
+  let tomorrow = new Date();
+  if (dateString) { tomorrow = new Date(dateString); }
+
   tomorrow.setDate(tomorrow.getDate() + 1);
   return tomorrow.toISOString().split('T')[0];
 }
 
 const BASE_PROMPT = `
-You are a medical secretary. Responsible for managing and responding to the clinic's digital communication channel.
-Your role is to write the most effective template message to convert a potential patient into an actual patient or to improve the patient experience.
+You are a medical secretary managing the digital communication channels of a clinic. Your key objective is to effectively engage with potential and current patients in order to either convert inquiries into bookings or improve the overall patient experience.
+
+When interacting with patients, you should aim to:
+- Match their availability with the doctor's schedule to secure an appointment.
+- Confirm the details of the appointment, ensuring the patient is fully informed.
+
+You have full discretion over the conversation flow, meaning there is no strict order for how each step is taken. Use your judgment to tailor each message to the patient's individual needs as effectively as possible.
 
 # Steps
-The suggested steps is to match the patient's availability with the doctor's schedule to book an appointment and confirm the appointment date and time.
-You do not need to follow these steps in order. Use your judgment to guide the conversation.
-Here is the suggested order of steps:
-1. Match the patient's availability with the doctor's schedule to book an appointment. Suggestions:
-  1.1. suggest_appointment_times: Suggest the two best available appointment times to the patient.
-  1.2. search_availabilities_for: Check the availability of the doctor for a specific date. 
-2. confirm_appointment: Confirm the appointment date and time.
-3. payment: call the {{ go_to_payment() }} addon to proceed with the payment process.
+The following suggested actions can be used as needed to proceed through the conversation smoothly:
+1. **Suggest Available Appointment Times**:
+   - Proactively suggest two of the best available appointment slots that match the doctor’s schedule.
+   - Alternatively, if the patient inquires about a specific date, use the \`{{ save_data(appointment_search_date: datetime, appointment_search_preferences: string) }}\` function to check the doctor's availability.
+   
+2. **Confirm Appointment**:
+   - Once the patient chooses a time, provide a clear and polite appointment confirmation with the date and time.
+  
+3. **Proceed to Payment**:
+   - Once an appointment is confirmed, initiate the payment process by calling the \`{{ go_to_payment() }}\` addon.
 `
 
 class MedicalSecretarySchedulerAgent extends BaseAgent {
   async run() {
     await super.run();
     
-    if (this.#agentCompleted()) { return this.goToStatus('payment'); }
+    if (this.#agentCompleted()) { return this.#success(); }
 
-    this.workflowUser = await this.#setCurrentStep();
+    if (!this.workflowUser.current_step) {
+      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'suggest_appointment_times' });
+    }
     
     if (this.workflowUser.current_step_messages_count >= 1) {
+      const oldAnswerData = this.answerData;
       this.workflowUser = await this.extractData(this.#step?.dataToExtract);
+      const newAnswerData = this.answerData;
 
-      return MedicalSecretarySchedulerAgent.run(this.workflowUser);
+      if (oldAnswerData !== newAnswerData) {
+        this.workflowUser = await this.#nextStep();
+        return MedicalSecretarySchedulerAgent.run(this.workflowUser);
+      }
     }
 
     const agentRun = await this.threadRun(await this.#prompt());
 
-    if (agentRun.functions?.go_to_payment) { return this.goToStatus('payment'); }
+    if (agentRun.functions?.go_to_payment) { return this.#success(); }
     if (agentRun.functions?.save_data) {
       this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
       await this.deleteThreadRun();
+      this.workflowUser = await this.#nextStep();
       return MedicalSecretarySchedulerAgent.run(this.workflowUser);
     }
 
@@ -54,14 +73,36 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   }
 
   #agentCompleted() {
-    return this.answerData.appointment_confirmed && this.answerData.appointment_date_and_time;
+    return this.answerData.appointment_confirmed && this.answerData.appointment_date_iso8601;
   }
 
-  async #setCurrentStep() {
+  async #success() {
+    const startDateTime = '2024-11-04T10:00:00+00:00';
+    const durantion = this.client.metadata?.appointment_duration || 60;
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + durantion);
+
+    await createEvent({
+      "summary": `Consultation with ${this.workflowUser.user_id}`,
+      "location": `${this.workflowUser.client_id} office`,
+      "start": {
+        "dateTime": startDateTime
+      },
+      "end": {
+        "dateTime": endDateTime.toISOString()
+      },
+      "attendees": [
+        { "email": envParams('default_email') }
+      ]
+    }, this.client.metadata?.calendar_id || 'primary');
+
+    return this.goToStatus('payment');
+  }
+
+  async #nextStep() {
     let nextStep = 'search_availabilities_for';
-    if (!this.workflowUser.current_step) {
-      nextStep = 'suggest_appointment_times';
-    } else if (this.answerData.appointment_date_and_time) {
+    
+    if (this.answerData.appointment_date_iso8601) {
       nextStep = 'confirm_appointment';
     } else if (this.answerData.appointment_search_date) {
       nextStep = 'suggest_appointment_times';
@@ -71,13 +112,13 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   }
   
   async #prompt() {
-    const prompt = `${BASE_PROMPT}
+    let prompt = `${BASE_PROMPT}
 # Addons available:
 ${this.#saveDataAddonPrompt()}
 
 #### addon {{ go_to_payment() }}
 Send the patient to the next step to schedule an appointment.
-Call this addon when you have confidence that the items appointment_date_and_time has been defined.`
+Call this addon when you have confidence that the items appointment_date_iso8601 has been defined.`
 
     if (this.workflowUser.current_step == 'suggest_appointment_times') {
       const baseDate = this.answerData.appointment_search_date || nextDay();
@@ -112,10 +153,10 @@ ${descriptions.join('\n')}`
 ### Objective
 You are on step suggest_appointment_times.
 You will receive the two best available appointment times, and you should suggest them to the patient.
-If patient accepts the suggested time, call the addon {{ save_data(appointment_date_and_time: datetime) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
+If patient accepts the suggested time, call the addon {{ save_data(appointment_date_iso8601: datetime) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
 `,
         dataToExtract: { 
-          appointment_date_and_time: {
+          appointment_date_iso8601: {
             type: 'number',
             description: 'The date and time the patient wants to schedule the appointment. date and time entries in the format \`YYYY-MM-DD HH:MM\`'
           },

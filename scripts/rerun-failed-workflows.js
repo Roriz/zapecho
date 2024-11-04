@@ -2,6 +2,7 @@ require('../lib/relative_absolute.js');
 
 const WorkflowUsers = require('~/models/workflow_user.js');
 const run_service = require('~/services/workflows/run_service.js');
+const envParams = require('#/configs/env_params.js');
 
 (async () => {
   console.info('Reruning failed workflows...');

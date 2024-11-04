@@ -1,5 +1,6 @@
 const Clients = require('~/models/client.js');
 const AgentRuns = require('~/models/agent_run.js');
+const WorkflowUsers = require('~/models/workflow_user.js');
 const ClientsAssistants = require('~/models/clients_assistant.js');
 const Messages = require('~/models/message.js');
 
@@ -37,8 +38,10 @@ class BaseAgent {
     return response[0].count;
   }
 
-  goToStatus(next_status) {
-    return this.createAgentRun({
+  async goToStatus(next_status) {
+    this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: null });
+
+    return await this.createAgentRun({
       next_status,
       is_complete: true
     });

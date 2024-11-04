@@ -40,11 +40,18 @@ async function availableSlots(clientId, date, preferences) {
   const slotDurationInMinutes = client.metadata?.appointment_duration || 60;
   // FIXME: remove primary, is only debug
   const calendarId = client.metadata?.calendar_id || 'primary';
-  
+
   const allSlots = generateTimeSlots(startOfDay, endOfDay, slotDurationInMinutes);
   const busySlots = await getBusyTimes(startOfDay, endOfDay, calendarId);
+  console.debug(`[services/calendar/available_slots] allSlots: ${allSlots.length} busySlots: ${busySlots.length}`);
+  console.debug(`[services/calendar/available_slots]`, { busySlots });
   const availableSlots = filterAvailableSlots(allSlots, busySlots);
-  return await bestDateTimeRepository(availableSlots.map((slot) => slot.start), preferences);
+  
+  const bestDateTimes = await bestDateTimeRepository(availableSlots.map((slot) => slot.start), preferences);
+
+  console.debug(`[services/calendar/available_slots] bestDateTimes: ${bestDateTimes.length}`);
+  console.debug(`[services/calendar/available_slots]`, { bestDateTimes });
+  return bestDateTimes;
 }
 
-exports.availableSlots = { availableSlots };
+module.exports = { availableSlots };

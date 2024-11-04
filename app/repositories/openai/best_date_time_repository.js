@@ -48,7 +48,7 @@ module.exports = {
         Act like today is ${today} (${weekDay})
 
         ## Should be better if
-        ${requirements.map(requirement => `- ${requirement}`).join('\n')}
+        ${(requirements || []).map(requirement => `- ${requirement}`).join('\n')}
 
         ## Available Dates
         ${possibleDates.map(isoDate => {
@@ -64,7 +64,7 @@ module.exports = {
     const response = await completionCall(messages);
 
     console.debug('[bestDateTimeRepository] response', JSON.stringify(response, null, 2));
-    return response.map((d) => {
+    return response.top_3_dates.map(d => {
       const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
       return `${d.date_time} (${weekDay})`
     });

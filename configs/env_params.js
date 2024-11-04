@@ -15,8 +15,10 @@ function shared() {
     whatsapp_permanent_token: process.env.WHATSAPP_PERMANENT_TOKEN,
     
     jwt_secret: process.env.JWT_SECRET,
-
+    
     host_url: 'https://local.zapecho.com',
+
+    default_email: process.env.DEFAULT_EMAIL,
   }
 }
 
@@ -48,6 +50,8 @@ const ENVORINMENTS = {
   production,
 };
 
-module.exports = function envParams() {
-  return (ENVORINMENTS[process.env.NODE_ENV] || development)();
+module.exports = function envParams(key = undefined) {
+  const all_keys = (ENVORINMENTS[process.env.NODE_ENV] || development)();
+
+  return key ? all_keys[key] : all_keys;
 };
