@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+
+const repl = require('repl');
+
+const fs = require('fs');
+const path = require('path');
+
+
+const replServer = repl.start('> ');
+
+replServer.context.fs = fs;
+replServer.context.path = path;
+
+require('../lib/relative_absolute.js');
+const { db } = require('#/configs/database.js');
+
+replServer.context.db = db;
+
+const foldersToLoad = ['models', 'repositories', 'services'];
+
+foldersToLoad.forEach(folder => {
+  fs.readdirSync(path.join(__dirname, `../app/${folder}`)).forEach(file => {
+    if (!file.endsWith('.js')) { return; }
+
+    const fileExport = require(`../app/${folder}/${file}`);
+    const key = fileExport.name;
+
+    if (key) { 
+      replServer.context[key] = fileExport;
+    } else {
+      for (const [key, value] of Object.entries(fileExport)) {
+        if (key == 'default') { 
+          replServer.context[value.name] = value;
+        } else {
+          replServer.context[key] = value;
+        }
+      }
+    }
+  });
+});
