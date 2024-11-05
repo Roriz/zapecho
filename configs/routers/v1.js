@@ -36,6 +36,7 @@ function addRoute(app, method, url, handler) {
 
 const { whatsappVerify, whatsappWebhook } = require('~/controllers/v1/whatsapp-controller.js');
 const { showStorageBlob } = require('~/controllers/v1/storage-blob-controller.js');
+const { authenticate, callback } = require('~/controllers/v1/google-controller.js');
 
 module.exports = function v1Routers(app, _, done) {
   // eslint-disable-next-line no-param-reassign
@@ -45,6 +46,8 @@ module.exports = function v1Routers(app, _, done) {
   addRoute(app, 'GET', '/whatsapp', whatsappVerify);
   addRoute(app, 'POST', '/whatsapp', whatsappWebhook);
   addRoute(app, 'GET', '/storage_blobs/:id', showStorageBlob);
+  addRoute(app, 'GET', '/google/authenticate', authenticate);
+  addRoute(app, 'GET', '/google/callback', callback);
 
   done();
 };

@@ -9,6 +9,17 @@ function authenticate() {
   });
 }
 
+function OAuth2Client() {
+  const credentials = require('#/credentials/google-calendar-credentials-v2.json');
+  const { client_id, client_secret, redirect_uris } = credentials.installed || credentials.web;
+
+  return new google.auth.OAuth2(
+    client_id,
+    client_secret,
+    redirect_uris[0],    
+  );
+}
+
 async function getBusyTimes(startDateTime, endDateTime, calendarId) {
   const auth = await authenticate();
   const calendar = google.calendar({ version: 'v3', auth });
@@ -45,24 +56,40 @@ async function getBusyTimes(startDateTime, endDateTime, calendarId) {
 //   ]
 // }
 async function createEvent(event, calendarId) {
-  const auth = await authenticate();
-  const calendar = google.calendar({ version: 'v3', auth });
+  const oauth2Client = OAuth2Client();
+  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-  try {
-    const res = await calendar.events.insert({
-      calendarId: 'primary',
-      requestBody: event,
-    });
-  } catch (err) {
-    console.error(err);
-    console.error(err.response.data.error.errors);
-    throw err;
-  }
+  const res = await calendar.events.insert({
+    calendarId: 'primary',
+    requestBody: event,
+  });
 
   return res.data;
+}
+
+function linkToAuth() {
+  const oauth2Client = OAuth2Client();
+
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['https://www.googleapis.com/auth/calendar'],
+  });
+
+  return authUrl;
+}
+
+async function handleCallback(code) {
+  const oauth2Client = OAuth2Client();
+  
+  const { tokens } = await oauth2Client.getToken(code);
+  oauth2Client.setCredentials(tokens);
+
+  return tokens;
 }
 
 module.exports = {
   getBusyTimes,
   createEvent,
+  linkToAuth,
+  handleCallback,
 };
