@@ -9,14 +9,20 @@ function authenticate() {
   });
 }
 
-function OAuth2Client() {
+// info: https://console.cloud.google.com/apis/credentials?hl=pt-br&project=zapecho
+function OAuth2Client(redirectParams = {}) {
   const credentials = require('#/credentials/google-calendar-credentials-v2.json');
   const { client_id, client_secret, redirect_uris } = credentials.installed || credentials.web;
+
+  const url = new URL(redirect_uris[0]);
+  const params = new URLSearchParams(redirectParams);
+  url.search = url.search ? `${url.search}&${params.toString()}` : params.toString();
+  const redirect_uri = url.toString();
 
   return new google.auth.OAuth2(
     client_id,
     client_secret,
-    redirect_uris[0],    
+    redirect_uri,    
   );
 }
 
@@ -67,12 +73,12 @@ async function createEvent(event, calendarId) {
   return res.data;
 }
 
-function linkToAuth() {
-  const oauth2Client = OAuth2Client();
+function linkToAuth(redirectParams) {
+  const oauth2Client = OAuth2Client(redirectParams);
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/calendar'],
+    scope: ['https://www.googleapis.com/auth/calendar']
   });
 
   return authUrl;
