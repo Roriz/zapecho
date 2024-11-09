@@ -1,47 +1,57 @@
 const { google } = require("googleapis");
-
-function authenticate() {
-  const credentials = require('#/credentials/google-calendar-credentials.json');
-
-  return new google.auth.GoogleAuth({
-    credentials: credentials,
-    scopes: ['https://www.googleapis.com/auth/calendar.events'],
-  });
-}
+const CalendarAuthsQuery = require('~/models/calendar_auth.js');
 
 // info: https://console.cloud.google.com/apis/credentials?hl=pt-br&project=zapecho
-function OAuth2Client(redirectParams = {}) {
+async function OAuth2Client(clientId) {
   const credentials = require('#/credentials/google-calendar-credentials-v2.json');
   const { client_id, client_secret, redirect_uris } = credentials.installed || credentials.web;
+  const redirect_uri = redirect_uris[0];
 
-  const url = new URL(redirect_uris[0]);
-  const params = new URLSearchParams(redirectParams);
-  url.search = url.search ? `${url.search}&${params.toString()}` : params.toString();
-  const redirect_uri = url.toString();
-
-  return new google.auth.OAuth2(
+  const auth = new google.auth.OAuth2(
     client_id,
     client_secret,
-    redirect_uri,    
+    redirect_uri,
   );
+
+  if (clientId) {
+    const calendarAuth = await CalendarAuthsQuery().findOne({ client_id: clientId });
+
+    auth.setCredentials({
+      access_token: calendarAuth.token.access_token,
+    });
+  }
+
+  return auth;
 }
 
-async function getBusyTimes(startDateTime, endDateTime, calendarId) {
-  const auth = await authenticate();
-  const calendar = google.calendar({ version: 'v3', auth });
+async function getBusyTimes(clientId, startDateTime, endDateTime) {
+  const oauth2Client = await OAuth2Client(clientId);
+  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+  const calendarAuth = await CalendarAuthsQuery().findOne({ client_id: clientId });
 
   const res = await calendar.freebusy.query({
     requestBody: {
       timeMin: startDateTime.toISOString(),
       timeMax: endDateTime.toISOString(),
-      items: [{ id: calendarId }],
+      items: [{ id: calendarAuth.primary_calendar_id }]
     },
   });
 
-  return (res.data.calendars[calendarId].busy || []).map((busy) => ({
+  return (res.data.calendars[calendarAuth.primary_calendar_id].busy || []).map((busy) => ({
     start: new Date(busy.start),
     end: new Date(busy.end)
   }));
+}
+
+async function getPrimaryCalendarId(clientId) {
+  const oauth2Client = await OAuth2Client(clientId);
+
+  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+  const res = await calendar.calendarList.list();
+
+  return res.data.items.find((item) => item.primary).id;
 }
 
 // Event example:
@@ -61,41 +71,45 @@ async function getBusyTimes(startDateTime, endDateTime, calendarId) {
 //     { "email": "example@email.com" }
 //   ]
 // }
-async function createEvent(event, calendarId) {
-  const oauth2Client = OAuth2Client();
+async function createEvent(event, clientId) {
+  const oauth2Client = await OAuth2Client(clientId);
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
+  const calendarAuth = await CalendarAuthsQuery().findOne({ client_id: clientId });
+
   const res = await calendar.events.insert({
-    calendarId: 'primary',
+    calendarId: calendarAuth.primary_calendar_id,
     requestBody: event,
   });
 
   return res.data;
 }
 
-function linkToAuth(redirectParams) {
-  const oauth2Client = OAuth2Client(redirectParams);
+async function linkToAuth() {
+  const oauth2Client = await OAuth2Client();
 
-  const authUrl = oauth2Client.generateAuthUrl({
+  return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: ['https://www.googleapis.com/auth/calendar']
   });
-
-  return authUrl;
 }
 
-async function handleCallback(code) {
-  const oauth2Client = OAuth2Client();
+async function codeToToken(code) {
+  const oauth2Client = await OAuth2Client();
   
   const { tokens } = await oauth2Client.getToken(code);
-  oauth2Client.setCredentials(tokens);
 
   return tokens;
 }
 
 module.exports = {
+  GoogleCalendarRepository: {
+    getBusyTimes,
+    createEvent,
+    linkToAuth,
+    codeToToken,
+    getPrimaryCalendarId,
+  },
   getBusyTimes,
-  createEvent,
-  linkToAuth,
-  handleCallback,
+  createEvent
 };

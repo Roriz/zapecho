@@ -1,5 +1,5 @@
 const Clients = require('~/models/client.js');
-const { getBusyTimes } = require('~/repositories/google_calendar_repository.js');
+const { GoogleCalendarRepository } = require('~/repositories/google_calendar_repository.js');
 const { bestDateTimeRepository } = require('~/repositories/openai/best_date_time_repository.js');
 
 function generateTimeSlots(startTime, endTime, slotDurationInMinutes) {
@@ -38,11 +38,9 @@ async function availableSlots(clientId, date, preferences) {
   const client = await Clients().findOne('id', clientId);
   const { startOfDay, endOfDay } = getStartAndEndOfDay(date);
   const slotDurationInMinutes = client.metadata?.appointment_duration || 60;
-  // FIXME: remove primary, is only debug
-  const calendarId = client.metadata?.calendar_id || 'primary';
 
   const allSlots = generateTimeSlots(startOfDay, endOfDay, slotDurationInMinutes);
-  const busySlots = await getBusyTimes(startOfDay, endOfDay, calendarId);
+  const busySlots = await GoogleCalendarRepository.getBusyTimes(client.id, startOfDay, endOfDay);
   console.debug(`[services/calendar/available_slots] allSlots: ${allSlots.length} busySlots: ${busySlots.length}`);
   console.debug(`[services/calendar/available_slots]`, { busySlots });
   const availableSlots = filterAvailableSlots(allSlots, busySlots);

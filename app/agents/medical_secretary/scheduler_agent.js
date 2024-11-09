@@ -12,6 +12,13 @@ const nextDay = (dateString = undefined) => {
   return tomorrow.toISOString().split('T')[0];
 }
 
+const todayText = () => {
+  const d = new Date();
+  const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
+
+  return `${d.toISOString().split('T')[0]} (${weekDay})`;
+}
+
 const BASE_PROMPT = `
 You are a medical secretary managing the digital communication channels of a clinic. Your key objective is to effectively engage with potential and current patients in order to either convert inquiries into bookings or improve the overall patient experience.
 
@@ -113,6 +120,9 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   
   async #prompt() {
     let prompt = `${BASE_PROMPT}
+# Today
+Act like today is ${todayText()}.
+
 # Addons available:
 ${this.#saveDataAddonPrompt()}
 

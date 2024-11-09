@@ -63,7 +63,6 @@ module.exports = {
 
     const response = await completionCall(messages);
 
-    console.debug('[bestDateTimeRepository] response', JSON.stringify(response, null, 2));
     return response.top_3_dates.map(d => {
       const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
       return `${d.date_time} (${weekDay})`

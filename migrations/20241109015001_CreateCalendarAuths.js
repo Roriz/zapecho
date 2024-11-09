@@ -10,6 +10,8 @@ exports.up = function(knex) {
     table.integer('client_id').unsigned().notNullable();
     table.string('code').notNullable();
     table.jsonb('token').notNullable();
+    table.string('provider').notNullable();
+    table.string('primary_calendar_id');
 
     table.foreign('client_id').references('clients.id').onDelete('CASCADE');
   });

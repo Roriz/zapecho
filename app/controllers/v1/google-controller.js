@@ -1,4 +1,4 @@
-const { linkToAuth, handleCallback } = require('~/repositories/google_calendar_repository.js');
+const { GoogleCalendarRepository } = require('~/repositories/google_calendar_repository.js');
 const { generateToken, verifyToken } = require('~/services/auth/jwt.js');
 const Clients = require('~/models/client.js');
 const CalendarAuthsQuery = require('~/models/calendar_auth.js');
@@ -16,7 +16,7 @@ const authenticate = {
 
     req.session.token = token;
 
-    return reply.redirect(await linkToAuth());
+    return reply.redirect(await GoogleCalendarRepository.linkToAuth());
   },
 };
 
@@ -28,24 +28,32 @@ const callback = {
 
     const token = await verifyToken(req.session.token);
     const clientId = token.payload.client_id;
-    const googleCalendarToken = await handleCallback(req.query.code);
-    const calendarAuth = await CalendarAuthsQuery().findOne('client_id', clientId);
+    const googleCalendarToken = await GoogleCalendarRepository.codeToToken(req.query.code);
+
+    let calendarAuth = await CalendarAuthsQuery().findOne('client_id', clientId);
     if (calendarAuth) {
-      await CalendarAuthsQuery().updateOne(
+      calendarAuth = await CalendarAuthsQuery().updateOne(
         calendarAuth, {
+          provider: 'google',
           code: req.query.code,
           token: googleCalendarToken
         }
       );
     } else {
-      await CalendarAuthsQuery().insert({
+      calendarAuth = await CalendarAuthsQuery().insert({
         client_id: clientId,
+        provider: 'google',
         code: req.query.code,
         token: googleCalendarToken
       });
     }
+    
+    const primaryCalendarId = await GoogleCalendarRepository.getPrimaryCalendarId(clientId);
+    await CalendarAuthsQuery().updateOne(
+      calendarAuth, { primary_calendar_id: primaryCalendarId }
+    );
 
-    return reply.code(200);
+    return reply.code(200).send({ message: 'Google Calendar authenticated' });
   }
 };
 
