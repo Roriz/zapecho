@@ -18,6 +18,7 @@ class BaseAgent {
     this.agentRunParams = undefined
     this.client = undefined
     this.assistant = undefined
+    this.retryCount = 0
   }
 
   async run() {
@@ -25,6 +26,17 @@ class BaseAgent {
     this.client = await Clients().findOne('id', this.workflowUser.client_id);
     // TODO: support multiple assistants per client
     this.assistant = await ClientsAssistants().findOne('client_id', this.workflowUser.client_id);
+  }
+
+  rerun() {
+    this.retryCount += 1;
+
+    if (this.retryCount > 5) {
+      console.error(`Retry count exceeded for ${this.constructor.name} with workflow_user_id: ${this.workflowUser.id}`);
+      throw new Error('Retry count exceeded');
+    }
+
+    return this.run();
   }
   
   // Support methods
