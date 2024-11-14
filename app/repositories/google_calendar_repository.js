@@ -16,9 +16,7 @@ async function OAuth2Client(clientId) {
   if (clientId) {
     const calendarAuth = await CalendarAuthsQuery().findOne({ client_id: clientId });
 
-    auth.setCredentials({
-      access_token: calendarAuth.token.access_token,
-    });
+    auth.setCredentials(calendarAuth.token);
   }
 
   return auth;
@@ -90,7 +88,8 @@ async function linkToAuth() {
 
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/calendar']
+    scope: ['https://www.googleapis.com/auth/calendar'],
+    prompt: 'consent'
   });
 }
 

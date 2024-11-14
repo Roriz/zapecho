@@ -31,14 +31,14 @@ You have full discretion over the conversation flow, meaning there is no strict 
 # Steps
 The following suggested actions can be used as needed to proceed through the conversation smoothly:
 1. **Suggest Available Appointment Times**:
-   - Proactively suggest two of the best available appointment slots that match the doctor’s schedule.
-   - Alternatively, if the patient inquires about a specific date, use the \`{{ save_data(appointment_search_date: datetime, appointment_search_preferences: string) }}\` function to check the doctor's availability.
+  - Proactively suggest two of the best available appointment slots that match the doctor’s schedule.
+  - Alternatively, if the patient inquires about a specific date, use the \`{{ save_data(appointment_search_date: datetime, appointment_search_preferences: string) }}\` function to check the doctor's availability.
    
 2. **Confirm Appointment**:
-   - Once the patient chooses a time, provide a clear and polite appointment confirmation with the date and time.
+  - Once the patient chooses a time, provide a clear and polite appointment confirmation with the date and time.
   
 3. **Proceed to Payment**:
-   - Once an appointment is confirmed, initiate the payment process by calling the \`{{ go_to_payment() }}\` addon.
+  - Once an appointment is confirmed, initiate the payment process by calling the \`{{ go_to_payment() }}\` addon.
 `
 
 class MedicalSecretarySchedulerAgent extends BaseAgent {
@@ -50,16 +50,14 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
     if (!this.workflowUser.current_step) {
       this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'suggest_appointment_times' });
     }
-    
-    if (this.workflowUser.current_step_messages_count >= 1) {
-      const oldAnswerData = this.answerData;
-      this.workflowUser = await this.extractData(this.#step?.dataToExtract);
-      const newAnswerData = this.answerData;
 
-      if (oldAnswerData !== newAnswerData) {
-        this.workflowUser = await this.#nextStep();
-        return MedicalSecretarySchedulerAgent.run(this.workflowUser);
-      }
+    const oldAnswerData = this.answerData;
+    this.workflowUser = await this.extractData(this.#step?.dataToExtract);
+    const newAnswerData = this.answerData;
+
+    if (oldAnswerData !== newAnswerData) {
+      this.workflowUser = await this.#nextStep();
+      return this.rerun();
     }
 
     const agentRun = await this.threadRun(await this.#prompt());
@@ -69,7 +67,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
       this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
       await this.deleteThreadRun();
       this.workflowUser = await this.#nextStep();
-      return MedicalSecretarySchedulerAgent.run(this.workflowUser);
+      return this.rerun();
     }
 
     return agentRun;
@@ -80,11 +78,11 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   }
 
   #agentCompleted() {
-    return this.answerData.appointment_confirmed && this.answerData.appointment_date_iso8601;
+    return this.answerData.appointment_confirmed && this.answerData.appointment_date_ISO8601;
   }
 
   async #success() {
-    const startDateTime = '2024-11-04T10:00:00+00:00';
+    const startDateTime = this.answerData.appointment_date_ISO8601;
     const durantion = this.client.metadata?.appointment_duration || 60;
     const endDateTime = new Date(startDateTime);
     endDateTime.setMinutes(endDateTime.getMinutes() + durantion);
@@ -101,7 +99,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
       "attendees": [
         { "email": envParams('default_email') }
       ]
-    }, this.client.metadata?.calendar_id || 'primary');
+    }, this.workflowUser.client_id);
 
     return this.goToStatus('payment');
   }
@@ -109,9 +107,13 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   async #nextStep() {
     let nextStep = 'search_availabilities_for';
     
-    if (this.answerData.appointment_date_iso8601) {
+    if (this.answerData.appointment_date_ISO8601) {
       nextStep = 'confirm_appointment';
+    } else if (this.answerData.suggested_appointment_time_rejected) {
+      this.workflowUser = await this.workflowUser.delAnswerData('appointment_date_ISO8601');
+      nextStep = 'search_availabilities_for';
     } else if (this.answerData.appointment_search_date) {
+      this.workflowUser = await this.workflowUser.delAnswerData('suggested_appointment_time_rejected');
       nextStep = 'suggest_appointment_times';
     }
 
@@ -128,7 +130,7 @@ ${this.#saveDataAddonPrompt()}
 
 #### addon {{ go_to_payment() }}
 Send the patient to the next step to schedule an appointment.
-Call this addon when you have confidence that the items appointment_date_iso8601 has been defined.`
+Call this addon when you have confidence that the items appointment_date_ISO8601 has been defined.`
 
     if (this.workflowUser.current_step == 'suggest_appointment_times') {
       const baseDate = this.answerData.appointment_search_date || nextDay();
@@ -163,12 +165,12 @@ ${descriptions.join('\n')}`
 ### Objective
 You are on step suggest_appointment_times.
 You will receive the two best available appointment times, and you should suggest them to the patient.
-If patient accepts the suggested time, call the addon {{ save_data(appointment_date_iso8601: datetime) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
+If patient accepts the suggested time, call the addon {{ save_data(appointment_date_ISO8601: string) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
 `,
         dataToExtract: { 
-          appointment_date_iso8601: {
-            type: 'number',
-            description: 'The date and time the patient wants to schedule the appointment. date and time entries in the format \`YYYY-MM-DD HH:MM\`'
+          appointment_date_ISO8601: {
+            type: 'string',
+            description: 'The date and time the patient wants to schedule the appointment. Date and time entries in the format \`YYYY-MM-DDTHH:MM:SS\`. Ignore the timezone.'
           },
           suggested_appointment_time_rejected: {
             type: 'boolean',

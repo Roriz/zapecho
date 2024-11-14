@@ -48,15 +48,15 @@ You are tasked with crafting template messages for digital communication at {{ c
   - **Variables**: Insertable placeholders that customize the message, e.g., {{ clinic_name }}.
   - **Addons**: Actions that save or forward the conversation, e.g., {{ save_data(appointment_date: 'value') }}.
 
-# Clinic Information
-- **Overview**: "A Clínica Cardiológica da Dra. Cardina é especializada em consultas e exames cardiológicos. Nossa equipe de cardiologistas altamente qualificados oferece atendimento personalizado e humanizado, com foco na prevenção, diagnóstico e tratamento de doenças do coração. Estamos comprometidos em proporcionar um ambiente acolhedor e seguro para cuidar da sua saúde cardíaca."
-
 ## Clinic's Variables
 - {{ clinic_name }}
 - {{ clinic_address }}
 - {{ clinic_phone }}
 - {{ clinic_website }}
 - {{ assistant_name }}
+
+# Clinic Information
+- **Overview**: "{{ clinic_name }} é especializada em consultas e exames cardiológicos. Nossa equipe de cardiologistas altamente qualificados oferece atendimento personalizado e humanizado, com foco na prevenção, diagnóstico e tratamento de doenças do coração. Estamos comprometidos em proporcionar um ambiente acolhedor e seguro para cuidar da sua saúde cardíaca."
 
 ## Services Offered
 - **Consultations**: Cardiology consultations covering hypertension, arrhythmias, heart failure, and high cholesterol.
@@ -65,31 +65,31 @@ You are tasked with crafting template messages for digital communication at {{ c
 
 ## Frequently Asked Questions
 1. **What services are offered?**
-   - "Nossa clínica oferece consultas especializadas em cardiologia, incluindo exames preventivos, diagnóstico e tratamento de doenças cardíacas..."
+  - "Nossa clínica oferece consultas especializadas em cardiologia, incluindo exames preventivos, diagnóstico e tratamento de doenças cardíacas..."
 
 2. **How do I book an appointment?**
-   - "Você pode agendar sua consulta diretamente pelo nosso telefone, WhatsApp ou através do nosso site..."
+  - "Você pode agendar sua consulta diretamente pelo nosso telefone, WhatsApp ou através do nosso site..."
 
 3. **What payment methods are accepted?**
-   - "Aceitamos pagamentos por cartão de crédito, débito e transferências bancárias..."
+  - "Aceitamos pagamentos por cartão de crédito, débito e transferências bancárias..."
 
 4. **Does the clinic accept insurance?**
-   - "Atualmente, trabalhamos apenas com consultas particulares..."
+  - "Atualmente, trabalhamos apenas com consultas particulares..."
 
 5. **How much does a consultation cost?**
-   - "O valor da consulta varia de acordo com o tipo de atendimento e exames necessários..."
+  - "O valor da consulta varia de acordo com o tipo de atendimento e exames necessários..."
 
 6. **How should I prepare for my consultation?**
-   - "Para a primeira consulta, traga sua lista de medicamentos atuais, exames recentes e histórico médico..."
+  - "Para a primeira consulta, traga sua lista de medicamentos atuais, exames recentes e histórico médico..."
 
 7. **How long does a consultation last?**
-   - "As consultas geralmente duram entre 30 a 60 minutos..."
+  - "As consultas geralmente duram entre 30 a 60 minutos..."
 
 8. **What exams are conducted at the clinic?**
-   - "Realizamos exames como eletrocardiograma (ECG), ecocardiograma..."
+  - "Realizamos exames como eletrocardiograma (ECG), ecocardiograma..."
 
 10. **What is the follow-up like after diagnosis?**
-   - "Após o diagnóstico, oferecemos um plano de acompanhamento personalizado..."
+  - "Após o diagnóstico, oferecemos um plano de acompanhamento personalizado..."
 
 # Output Format
 Craft template messages using the defined variables and addons, presenting them as text exchanges that emulate an instant messaging chat.

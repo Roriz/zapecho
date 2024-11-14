@@ -13,6 +13,13 @@ const INVALID_VALUES = [
  'undefined',
 ]
 
+const todayText = () => {
+  const d = new Date();
+  const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
+
+  return `${d.toISOString().split('T')[0]} (${weekDay})`;
+}
+
 module.exports = {
   dataExtractor: async function dataExtractor(lastRelevantMessages, fieldToExtract) {
     if (!lastRelevantMessages || lastRelevantMessages.length === 0) { return {} }
@@ -34,6 +41,9 @@ module.exports = {
         Act as a data extractor function, that will extract structured and typed data from the user messages.
         You reponse a valid json based on the data schema:
         ${JSON.stringify(fieldsWithExplanation, null, 2)}
+
+        # Today
+        Act like today is ${todayText()}.
         `
       },
       ...lastRelevantMessages.map(m => {

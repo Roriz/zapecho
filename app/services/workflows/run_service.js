@@ -49,7 +49,11 @@ module.exports = async function runWorkflow(workflowUserId) {
       }
     })
   } catch (error) {
-    console.error({ code: 'workflows/run_service', payload: error });
+    console.error({
+      code: 'workflows/run_service',
+      error,
+      payload: JSON.stringify({ workflowUserId, error })
+    });
     await WorkflowUsers().updateOne(workflowUser, {
       is_running: false,
       last_runned_failed_at: new Date(),

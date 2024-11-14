@@ -4,7 +4,7 @@ const { whatsappSendService } = require('~/services/whatsapp/send_service.js');
 
 async function whatsappHumanSendMessages(agentRun, channelId) {
   const attachments = await StorageAttachments().where('storable_type', 'agent_run').where('storable_id', agentRun.id);
-  const bodyMessages = agentRun.message_body?.trim()?.split('\n\n') || [];
+  const bodyMessages = agentRun.message_body?.trim()?.split('\n\n\n\n\n') || [];
 
   for (let [index, bodyMessage] of bodyMessages.entries()) {
     if (!bodyMessage.trim()) { continue; }
