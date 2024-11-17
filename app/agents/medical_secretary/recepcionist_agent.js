@@ -26,11 +26,8 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     }
     
     if (this.workflowUser.current_step_messages_count >= 1) {
-      const oldAnswerData = this.answerData;
-      this.workflowUser = await this.extractData(this.#step?.dataToExtract);
-      const newAnswerData = this.answerData;
-
-      if (oldAnswerData !== newAnswerData) {
+      const extractedData = await this.extractData(this.#step?.dataToExtract);
+      if (Object.keys(extractedData).length) {
         this.workflowUser = await this.#nextStep();
         return this.rerun();
       }
@@ -45,10 +42,13 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     }
 
     if (agentRun.functions?.save_data) {
-      this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
-      await this.deleteThreadRun();
-      this.workflowUser = await this.#nextStep();
-      return this.rerun();
+      const newData = await this.addAnswerData(agentRun.functions?.save_data.arguments);
+      
+      if (Object.keys(newData).length) {
+        await this.deleteThreadRun();
+        this.workflowUser = await this.#nextStep();
+        return this.rerun();
+      }
     }
 
     if (agentRun.functions?.change_step) {
