@@ -2,7 +2,7 @@ const WorkflowUsers = require('~/models/workflow_user.js');
 const { BaseAgent } = require('~/agents/base_agent.js');
 const envParams = require('#/configs/env_params.js');
 const { availableSlots } = require('~/services/calendar/available_slots.js')
-const { createEvent } = require('~/repositories/google_calendar_repository.js')
+const { GoogleCalendarRepository } = require('~/repositories/google_calendar_repository.js')
 
 const nextDay = (dateString = undefined) => {
   let tomorrow = new Date();
@@ -51,11 +51,8 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
       this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'suggest_appointment_times' });
     }
 
-    const oldAnswerData = this.answerData;
-    this.workflowUser = await this.extractData(this.#step?.dataToExtract);
-    const newAnswerData = this.answerData;
-
-    if (oldAnswerData !== newAnswerData) {
+    const extractedData = await this.extractData(this.#step?.dataToExtract);
+    if (Object.keys(extractedData).length) {
       this.workflowUser = await this.#nextStep();
       return this.rerun();
     }
@@ -64,13 +61,20 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
 
     if (agentRun.functions?.go_to_payment) { return this.#success(); }
     if (agentRun.functions?.save_data) {
-      this.workflowUser = await this.workflowUser.addAnswerData(agentRun.functions?.save_data.arguments);
-      await this.deleteThreadRun();
-      this.workflowUser = await this.#nextStep();
-      return this.rerun();
+      const newData = await this.addAnswerData(agentRun.functions?.save_data.arguments);
+
+      if (Object.keys(newData).length) {
+        await this.deleteThreadRun();
+        this.workflowUser = await this.#nextStep();
+        return this.rerun();
+      }
     }
 
     return agentRun;
+  }
+
+  ON_CHANGE = {
+    appointment_date_ISO8601: this.#onAppointmentDateChange,
   }
   
   get #step() {
@@ -82,12 +86,11 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   }
 
   async #success() {
-    const startDateTime = this.answerData.appointment_date_ISO8601;
-    const durantion = this.client.metadata?.appointment_duration || 60;
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setMinutes(endDateTime.getMinutes() + durantion);
+    const [startDateTime, endDateTime] = this.#getAppointmentSlot(
+      this.answerData.appointment_date_ISO8601
+    );
 
-    await createEvent({
+    await GoogleCalendarRepository.createEvent({
       "summary": `Consultation with ${this.workflowUser.user_id}`,
       "location": `${this.workflowUser.client_id} office`,
       "start": {
@@ -167,7 +170,7 @@ You are on step suggest_appointment_times.
 You will receive the two best available appointment times, and you should suggest them to the patient.
 If patient accepts the suggested time, call the addon {{ save_data(appointment_date_ISO8601: string) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
 `,
-        dataToExtract: { 
+        dataToExtract: {
           appointment_date_ISO8601: {
             type: 'string',
             description: 'The date and time the patient wants to schedule the appointment. Date and time entries in the format \`YYYY-MM-DDTHH:MM:SS\`. Ignore the timezone.'
@@ -209,6 +212,34 @@ After patient respond, call the addon {{ save_data(appointment_confirmed: boolea
          }
       }
     }
+  }
+
+  async #onAppointmentDateChange(dateString) {
+    const date = new Date(dateString);
+
+    if (date.toString() == 'Invalid Date') { return; }
+    // FIXME: Make sure date has some timezone set
+    if (date < new Date()) { return; }
+
+    const [startDateTime, endDateTime] = this.#getAppointmentSlot(dateString);
+
+    const busySlots = await GoogleCalendarRepository.getBusySlots(
+      this.workflowUser.client_id,
+      startDateTime,
+      endDateTime
+    );
+    if (busySlots.length) { return; }
+
+    return dateString;
+  }
+
+  #getAppointmentSlot(dateString) {    
+    const startDateTime = new Date(dateString);
+    const durantion = this.client.metadata?.appointment_duration || 60;
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + durantion);
+
+    return [startDateTime, endDateTime];
   }
 }
 

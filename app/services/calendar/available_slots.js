@@ -40,7 +40,7 @@ async function availableSlots(clientId, date, preferences) {
   const slotDurationInMinutes = client.metadata?.appointment_duration || 60;
 
   const allSlots = generateTimeSlots(startOfDay, endOfDay, slotDurationInMinutes);
-  const busySlots = await GoogleCalendarRepository.getBusyTimes(client.id, startOfDay, endOfDay);
+  const busySlots = await GoogleCalendarRepository.getBusySlots(client.id, startOfDay, endOfDay);
   console.debug(`[services/calendar/available_slots] allSlots: ${allSlots.length} busySlots: ${busySlots.length}`);
   console.debug(`[services/calendar/available_slots]`, { busySlots });
   const availableSlots = filterAvailableSlots(allSlots, busySlots);

@@ -22,7 +22,7 @@ async function OAuth2Client(clientId) {
   return auth;
 }
 
-async function getBusyTimes(clientId, startDateTime, endDateTime) {
+async function getBusySlots(clientId, startDateTime, endDateTime) {
   const oauth2Client = await OAuth2Client(clientId);
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -40,6 +40,12 @@ async function getBusyTimes(clientId, startDateTime, endDateTime) {
     start: new Date(busy.start),
     end: new Date(busy.end)
   }));
+}
+
+async function slotIsAvailable(clientId, startDateTime, endDateTime) {
+  const busyTimes = await getBusySlots(clientId, startDateTime, endDateTime);
+
+  return !busyTimes.length;
 }
 
 async function getPrimaryCalendarId(clientId) {
@@ -103,12 +109,11 @@ async function codeToToken(code) {
 
 module.exports = {
   GoogleCalendarRepository: {
-    getBusyTimes,
+    getBusySlots,
     createEvent,
     linkToAuth,
     codeToToken,
     getPrimaryCalendarId,
-  },
-  getBusyTimes,
-  createEvent
+    slotIsAvailable,
+  }
 };

@@ -1,12 +1,6 @@
 # TODO
-<!-- - add header and footer on whatsapp -->
-<!-- - text step migration on recepcionist agent -->
-- replicate recepcionist agent addons on sheduler agent
-<!-- - Variáveis anti hallucinations  -->
 - Conselho de revisão da mensagem
-<!-- - Integração com um sistema de agenda -->
 - remove sensive data using local NLP
-- Indicacao do local
 - produtos ou servico
 - Envio de arquivos
 - CRM - mensagem antes do evento relembrando - confirmando
@@ -14,7 +8,10 @@
 - mandar mensagem para o medico perguntando coisas
 - reshedule agent
 - rename workflow_user to thread
-
+- unify base agent into AgentEngine
+- create workflow to support more than 1 product to 1 schedule (like sales products or services)
+- create workflow to support 1 product to multiple schedules (medical clinic with mutiple medics with same product or barber shop)
+- unify slots interface
 
 ## Agent
 Agent is a autonomous entity that can perform actions on behalf of a user. Agents are small tasks resolver like discover the user intent or find the best date and time. Agents are the building blocks of the workflow.

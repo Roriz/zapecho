@@ -24,8 +24,6 @@ module.exports = async function extract_data_service(workflowUser, data_to_extra
     ...DATA_TO_EXTRACT,
   });
 
-  // HACK: Current model is not able to extract messages with "no problem" or "no worries", the LLM will act like is a negative message.
-  // FIXME: should be fixed in any model more powerful than the gpt4o-mini
   if (extractedData && extractedData.message_is_a_litote) {
     lastRelevantMessages[lastRelevantMessages.length - 1] = {
       ...lastRelevantMessages[lastRelevantMessages.length - 1],
@@ -42,9 +40,5 @@ module.exports = async function extract_data_service(workflowUser, data_to_extra
   delete extractedData.message_is_a_litote;
   delete extractedData.message_litote_true_meaning;
 
-  if (extractedData) {
-    return workflowUser.addAnswerData(extractedData)
-  } else {
-    return workflowUser
-  }
+  return extractedData;
 }

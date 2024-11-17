@@ -134,12 +134,39 @@ class BaseAgent {
     });
   }
 
-  async extractData(dataToExtract) {
-    if(Object.keys(dataToExtract || {}).length === 0) { return this.workflowUser; }
+  async extractData(dataToExtract = {}) {
+    if(Object.keys(dataToExtract).length === 0) { return {}; }
 
-    this.workflowUser = await ExtractDataService(this.workflowUser, dataToExtract);
+    let extractedData = await ExtractDataService(this.workflowUser, dataToExtract);
+    return await this.addAnswerData(extractedData);
+  }
+
+  // INFO: Dictionary of functions to be applied to the extracted data before saving
+  //       Example: ON_CHANGE = { user_name: (value) => value === 'lorem' ? 'ipsum' : value } // change 'lorem' to 'ipsum'
+  //       Example: ON_CHANGE = { user_age: (value) => value > 200 ? null : value } // remove value if it's greater than 200
+  ON_CHANGE = {}
+  async addAnswerData(newAnswerData) {
+    const oldAnswerData = this.workflowUser.answers_data;
+
+    const changedKeys = Object.keys(newAnswerData).filter(key => oldAnswerData[key] !== newAnswerData[key]);
     
-    return this.workflowUser;
+    const dataToSave = {};
+    for (const key of changedKeys) {
+      let value = newAnswerData[key];
+      if (this.ON_CHANGE[key]) {
+        value = await this.ON_CHANGE[key](value);
+      }
+
+      if (value) {
+        dataToSave[key] = newAnswerData[key];
+      }
+    }
+
+    if (Object.keys(dataToSave).length > 0) {
+      this.workflowUser = await this.workflowUser.addAnswerData(dataToSave);
+    }
+
+    return dataToSave;
   }
 
 }
