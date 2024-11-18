@@ -14,7 +14,7 @@ const nextDay = (dateString = undefined) => {
 
 const todayText = () => {
   const d = new Date();
-  const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
+  const weekDay = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
 
   return `${d.toISOString().split('T')[0]} (${weekDay})`;
 }
@@ -141,6 +141,10 @@ Call this addon when you have confidence that the items appointment_date_ISO8601
 
       prompt += `\n### Available slots
 ${slots.map(slot => `- ${slot}`).join('\n')}`
+    } else if (this.workflowUser.current_step == 'confirm_appointment') {
+      prompt += `### Appointment confirmation
+      The patient has chosen the following appointment date and time: ${this.answerData.appointment_date_ISO8601}
+      `
     }
 
     return `${prompt}\n${this.#step.objective}`

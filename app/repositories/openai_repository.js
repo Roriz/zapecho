@@ -1,6 +1,5 @@
 const OpenAI = require('openai');
 const fromPairs = require('lodash/fromPairs');
-const isEmpty = require('lodash/isEmpty');
 const envParams = require('#/configs/env_params.js');
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -20,7 +19,8 @@ function openaiSDK() {
 function _extract_functions(message) {
   if (!message) return {};
 
-  const calls = message.match(/{{\s*(.+)\s*}}/g) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
+  const calls = message.match(/{{\s*\(.+\)\s*}}/g) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
+
   const functions = calls.map(call => {
     let [_, name, raw_arguments] = call.match(/(\w+)\((.*?)\)/); // _, example_function, arg1: 'a', arg2: ['c', 'd']
 
@@ -83,13 +83,15 @@ async function threadRun(thread_id, assistant_id, prompt) {
   console.debug('[openai][threadRun] agentRunParams:', agentRunParams)
   
   agentRunParams.functions = _extract_functions(agentRunParams.message_body);
-  Object.values(agentRunParams.functions).forEach(f => {
-    agentRunParams.message_body = agentRunParams.message_body.replaceAll(
-      `{{ ${f.raw} }}`, ''
-    ).replaceAll(`{{${f.raw}}}`, '').trim();
-  })
-
   agentRunParams.variables = _extract_variables(agentRunParams.message_body);
+  
+  [
+    ...Object.values(agentRunParams.functions),
+    ...Object.values(agentRunParams.variables)
+  ].forEach(f => {
+    agentRunParams.message_body = agentRunParams.message_body.replaceAll(`{{ ${f.raw} }}`, '').trim();
+    agentRunParams.message_body = agentRunParams.message_body.replaceAll(`{{${f.raw}}}`, '').trim();
+  })
 
   return agentRunParams;
 }

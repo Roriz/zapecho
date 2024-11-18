@@ -15,7 +15,7 @@ const INVALID_VALUES = [
 
 const todayText = () => {
   const d = new Date();
-  const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
+  const weekDay = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
 
   return `${d.toISOString().split('T')[0]} (${weekDay})`;
 }

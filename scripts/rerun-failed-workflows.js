@@ -7,7 +7,7 @@ const envParams = require('#/configs/env_params.js');
 (async () => {
   console.info('Reruning failed workflows...');
 
-  const workflow_users = await WorkflowUsers().whereNotNull('last_runned_failed_at');
+  const workflow_users = await WorkflowUsers().whereNotNull('last_runned_failed_at').where('finished_at', null)
   for (const workflow_user of workflow_users) {
     console.info(`Reruning workflow_user.id:${workflow_user.id}...`);
     await run_service(workflow_user.id);

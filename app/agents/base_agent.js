@@ -154,7 +154,7 @@ class BaseAgent {
     for (const key of changedKeys) {
       let value = newAnswerData[key];
       if (this.ON_CHANGE[key]) {
-        value = await this.ON_CHANGE[key](value);
+        value = await this.ON_CHANGE[key].bind(this)(value);
       }
 
       if (value) {

@@ -4,7 +4,7 @@ const Clients = require('~/models/client.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
 const { whatsappHumanSendMessages } = require('~/services/whatsapp/human_send_service.js');
-const extract_data_service = require('~/services/workflow_users/extract_data_service.js');
+const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
 
 const { MedicalSecretaryRecepcionistAgent } = require('~/agents/medical_secretary/recepcionist_agent.js')
 const { MedicalSecretarySchedulerAgent } = require('~/agents/medical_secretary/scheduler_agent.js')
@@ -69,7 +69,8 @@ module.exports = async function medicalSecretaryWorkflow(workflowUser) {
   const lastUnrespondedMessages = await Messages().where('sender_type', 'user').lastRelevantMessages(workflowUser.id);
   const channelId = lastUnrespondedMessages.at(-1).channel_id;
   
-  workflowUser = await extract_data_service(workflowUser, DATA_TO_EXTRACT);
+  const extractedData = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
+  workflowUser = await WorkflowUsers().updateOne(workflowUser, { answers_data: extractedData });
   // TODO: improve the guard rails
   if (workflowUser.answers_data?.message_is_irrelevant) {
     Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 
