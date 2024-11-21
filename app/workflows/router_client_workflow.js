@@ -1,16 +1,16 @@
 const Clients = require('~/models/client.js');
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 
 module.exports = async function routerClientRunner(workflowUser) {
   // TODO: Implement the router client runner
   const client = await Clients().first()
   
-  await WorkflowUsers().updateOne(workflowUser, {
+  await Threads().updateOne(workflowUser, {
     finished_at: new Date(),
     status: 'finished'
   });
 
-  const workflowUserByClient = await WorkflowUsers().insert({
+  const workflowUserByClient = await Threads().insert({
     user_id: workflowUser.user_id,
     client_id: client.id,
     workflow_id: client.first_workflow_id,

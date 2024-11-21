@@ -9,12 +9,12 @@ const MessagesQuery = () => {
   
   query.lastRelevantMessages = async function lastRelevantMessages(workflowUserId, last = 3) {
     const lastMessages = await queryBuilder(Message).where(
-      'workflow_user_id',
+      'thread_id',
       workflowUserId
     ).whereNot('sender_type', 'user').orderBy('created_at', 'desc').limit(last);
     const oldestMessage = lastMessages.length ? lastMessages[lastMessages.length - 1] : undefined;
     
-    const messages = this.where('workflow_user_id', workflowUserId).orderBy('created_at', 'asc');
+    const messages = this.where('thread_id', workflowUserId).orderBy('created_at', 'asc');
     if (oldestMessage) {
       messages.whereRaw('id >= ?', [oldestMessage.id])
     }

@@ -1,7 +1,7 @@
 const Clients = require('~/models/client.js');
 const Users = require('~/models/user.js');
 const Messages = require('~/models/message.js');
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 const Channels = require('~/models/channel.js');
 const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
 const { downloadMedia } = require('~/repositories/whatsapp_repository.js');
@@ -52,8 +52,8 @@ const _insertMessage = async (params, user, channel) => {
   return message;
 };
 
-const _clientByWorkflowUser = async (user) => {
-  const workflowUser = await WorkflowUsers().findOne({ user_id: user.id, finished_at: null });
+const _clientByThread = async (user) => {
+  const workflowUser = await Threads().findOne({ user_id: user.id, finished_at: null });
 
   return workflowUser?.client_id;
 };
@@ -65,18 +65,18 @@ const _clientByFindableMessage = async (message) => {
 };
 
 const _discoverTheClient = async (message, user, channel) => {
-  return channel.client_id || await _clientByWorkflowUser(user) || await _clientByFindableMessage(message);
+  return channel.client_id || await _clientByThread(user) || await _clientByFindableMessage(message);
 };
 
-const _findOrActivateWorkflowUser = async (user, clientId) => {
-  const workflowUser = await WorkflowUsers().findOne({ user_id: user.id, finished_at: null });
+const _findOrActivateThread = async (user, clientId) => {
+  const workflowUser = await Threads().findOne({ user_id: user.id, finished_at: null });
 
   if (workflowUser) { return workflowUser; }
 
   if (clientId) {
     const client = await Clients().findOne('id', clientId);
 
-    return WorkflowUsers().insert({
+    return Threads().insert({
       user_id: user.id,
       workflow_id: client.first_workflow_id,
       client_id: clientId,
@@ -85,7 +85,7 @@ const _findOrActivateWorkflowUser = async (user, clientId) => {
 
   const routerWorkflow = await Workflows().findOne({ slug: 'router-client' })
 
-  return WorkflowUsers().insert({
+  return Threads().insert({
     user_id: user.id,
     workflow_id: routerWorkflow.id,
     client_id: null,
@@ -115,15 +115,15 @@ module.exports = async function whatsappReceiveService(params) {
   const message = await _insertMessage(params.messages[0], user, channel);
 
   const clientId = await _discoverTheClient(message, user, channel); // can be null
-  const workflowUser = await _findOrActivateWorkflowUser(user, clientId);
+  const workflowUser = await _findOrActivateThread(user, clientId);
 
   await Messages().where('id', message.id).update({
-    workflow_user_id: workflowUser.id,
+    thread_id: workflowUser.id,
     client_id: clientId,
   });
   
   if (params.messages[0].text?.body == '/reset') {
-    await WorkflowUsers().updateOne(workflowUser, { current_step: 'force_reset', finished_at: new Date() });
+    await Threads().updateOne(workflowUser, { current_step: 'force_reset', finished_at: new Date() });
     return;
   }
 

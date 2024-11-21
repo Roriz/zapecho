@@ -1,16 +1,16 @@
 require('../lib/relative_absolute.js');
 
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 const run_service = require('~/services/workflows/run_service.js');
 const envParams = require('#/configs/env_params.js');
 
 (async () => {
   console.info('Reruning failed workflows...');
 
-  const workflow_users = await WorkflowUsers().whereNotNull('last_runned_failed_at').where('finished_at', null)
-  for (const workflow_user of workflow_users) {
-    console.info(`Reruning workflow_user.id:${workflow_user.id}...`);
-    await run_service(workflow_user.id);
+  const threads = await Threads().whereNotNull('last_runned_failed_at').where('finished_at', null)
+  for (const thread of threads) {
+    console.info(`Reruning thread.id:${thread.id}...`);
+    await run_service(thread.id);
   }
   
   console.info('workflows runned.');

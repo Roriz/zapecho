@@ -10,7 +10,7 @@ async function whatsappHumanSendMessages(agentRun, channelId) {
     if (!bodyMessage.trim()) { continue; }
 
     await whatsappSendService({
-      workflow_user_id: agentRun.workflow_user_id,
+      thread_id: agentRun.thread_id,
       openai_message_id: agentRun.openai_message_id,
       channel_id: channelId,
       body: bodyMessage.trim(),
@@ -21,7 +21,7 @@ async function whatsappHumanSendMessages(agentRun, channelId) {
     const attachment = attachments[reverseIndex];
     if (attachment) {
       await whatsappSendService({
-        workflow_user_id: agentRun.workflow_user_id,
+        thread_id: agentRun.thread_id,
         openai_message_id: agentRun.openai_message_id,
         channel_id: channelId,
         message_type: 'image',
@@ -33,7 +33,7 @@ async function whatsappHumanSendMessages(agentRun, channelId) {
   const missing_attachments = attachments.slice(bodyMessages.length);
   for (let attachment of missing_attachments) {
     await whatsappSendService({
-      workflow_user_id: agentRun.workflow_user_id,
+      thread_id: agentRun.thread_id,
       openai_message_id: agentRun.openai_message_id,
       channel_id: channelId,
       message_type: 'image',

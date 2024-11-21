@@ -7,7 +7,6 @@
 - coletar dados do paciente antes do agendamento
 - mandar mensagem para o medico perguntando coisas
 - reshedule agent
-- rename workflow_user to thread
 - unify base agent into AgentEngine
 - create workflow to support more than 1 product to 1 schedule (like sales products or services)
 - create workflow to support 1 product to multiple schedules (medical clinic with mutiple medics with same product or barber shop)
@@ -26,7 +25,7 @@ guard_rails - a set of rules to block or filter topics that are not allowed to b
 message - a text/image/file that is sent or received by the user
 
 ### Use cases
-receive_message -> messages -> workflow -> guard_rails -> workflow_user -> agent_runs -> workflow_user -> messages -> response_message
+receive_message -> messages -> workflow -> guard_rails -> thread -> agent_runs -> thread -> messages -> response_message
 
 ### Agent run
 Is the output of the agent, usually a message, function or a variable. A agent run is not restricted to a LLM model, it can be a bussiness rule, a function, a static message, ML model, etc. There is no restriction on how the agent run is implemented.

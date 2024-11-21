@@ -1,4 +1,4 @@
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 const { BaseAgent } = require('~/agents/base_agent.js');
 const envParams = require('#/configs/env_params.js');
 const { availableSlots } = require('~/services/calendar/available_slots.js')
@@ -59,7 +59,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
     if (this.#agentCompleted()) { return this.#success(); }
 
     if (!this.workflowUser.current_step) {
-      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'suggest_appointment_times' });
+      this.workflowUser = await Threads().updateOne(this.workflowUser, { current_step: 'suggest_appointment_times' });
     }
 
     const extractedData = await this.extractData(this.#step?.dataToExtract);
@@ -131,7 +131,7 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
       nextStep = 'confirm_appointment';
     }
 
-    return await WorkflowUsers().updateOne(this.workflowUser, { current_step: nextStep });
+    return await Threads().updateOne(this.workflowUser, { current_step: nextStep });
   }
   
   async #prompt() {

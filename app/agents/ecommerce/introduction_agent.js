@@ -4,7 +4,7 @@ const { BaseAgent } = require('~/agents/base_agent.js');
 
 class EcommerceIntroductionAgent extends BaseAgent {
   async run() {
-    const lastMessage = await Messages().where('workflow_user_id', this.workflowUser.id).orderBy('created_at', 'desc').first();
+    const lastMessage = await Messages().where('thread_id', this.workflowUser.id).orderBy('created_at', 'desc').first();
 
     const client = await this.client();
     const assistant = await this.assistant();

@@ -1,5 +1,5 @@
 const Messages = require('~/models/message.js');
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 const StorageAttachments = require('~/models/storage_attachment.js');
 const { openaiSDK } = require('~/repositories/openai_repository.js');
 const { dataExtractor } = require('~/repositories/openai/data_extractor_repository.js');
@@ -25,11 +25,11 @@ const FIRST_STATUS = 'introduction';
 async function _createThread(workflowUser) {
   const thread = await openaiSDK().beta.threads.create();
 
-  return WorkflowUsers().updateOne(workflowUser, { openai_thread_id: thread.id });
+  return Threads().updateOne(workflowUser, { openai_thread_id: thread.id });
 }
 
 async function _addMessagesToThread(workflowUser) {
-  const messages = await Messages().where('workflow_user_id', workflowUser.id).whereNull('openai_id').orderBy('created_at', 'asc');
+  const messages = await Messages().where('thread_id', workflowUser.id).whereNull('openai_id').orderBy('created_at', 'asc');
   return Promise.all(messages.map(async (message) => {
     if (!message.body) { return; }
 
@@ -82,11 +82,11 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
     Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 
     return workflowUser;
   } else if (workflowUser.answers_data?.user_do_not_want_to_continue) {
-    workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: 'cancelled' });
+    workflowUser = await Threads().updateOne(workflowUser, { status: 'cancelled' });
   } 
   
   if (!workflowUser.status) {
-    workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: FIRST_STATUS });
+    workflowUser = await Threads().updateOne(workflowUser, { status: FIRST_STATUS });
   }
   console.info('[workflows/ecommerce_demo_workflow] data extracted and passed guard rails');
 
@@ -104,7 +104,7 @@ module.exports = async function ecommerceDemoWorkflow(workflowUser) {
   
   if (agentRun.is_complete) {
     if (agentRun.next_status) {
-      workflowUser = await WorkflowUsers().updateOne(workflowUser, { status: agentRun.next_status });
+      workflowUser = await Threads().updateOne(workflowUser, { status: agentRun.next_status });
     }
 
     // HANK: we need a flag to know if the agentRun need or not run again

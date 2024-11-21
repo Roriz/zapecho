@@ -1,13 +1,13 @@
 const Message = require('~/models/message.js');
-const WorkflowUser = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 const ClientsAssistants = require('~/models/clients_assistant.js');
 
 const { whatsappPostMessage } = require('~/repositories/whatsapp_repository.js');
 const { createAttachmentService } = require('~/services/storage/create_attachment_service.js');
-const { addStatiticsService } = require('~/services/workflow_users/add_statitics_service.js');
+const { addStatiticsService } = require('~/services/threads/add_statitics_service.js');
 
 async function whatsappSendService(messageParams) {
-  const workflowUser = await WorkflowUser().findOne('id', messageParams.workflow_user_id);
+  const workflowUser = await Threads().findOne('id', messageParams.thread_id);
   const assistant = await ClientsAssistants().findOne('client_id', workflowUser.client_id);
 
   const message = await Message().insert({
@@ -15,7 +15,7 @@ async function whatsappSendService(messageParams) {
     user_id: workflowUser.user_id,
     client_id: workflowUser.client_id,
     message_type: messageParams.message_type,
-    workflow_user_id: messageParams.workflow_user_id,
+    thread_id: messageParams.thread_id,
     channel_id: messageParams.channel_id,
     body: messageParams.body,
     header: `${assistant.assistant_name}:`,

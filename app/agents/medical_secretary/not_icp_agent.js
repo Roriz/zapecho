@@ -1,5 +1,5 @@
 const { BaseAgent } = require('~/agents/base_agent.js');
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 
 const MESSAGE = `
 Agradeço por entrar em contato. No momento, infelizmente, não atendos as suas necessidades.
@@ -9,7 +9,7 @@ Fico à disposição para qualquer outra necessidade.
 
 class MedicalSecretaryNotIcpAgent extends BaseAgent {
   async run() {
-    await WorkflowUsers().updateOne(this.workflowUser, { finished_at: new Date() });
+    await Threads().updateOne(this.workflowUser, { finished_at: new Date() });
 
     return this.createAgentRun({
       message_body: MESSAGE,

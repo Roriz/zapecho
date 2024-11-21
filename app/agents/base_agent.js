@@ -1,10 +1,10 @@
 const Clients = require('~/models/client.js');
 const AgentRuns = require('~/models/agent_run.js');
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 const ClientsAssistants = require('~/models/clients_assistant.js');
 const Messages = require('~/models/message.js');
 
-const ExtractDataService = require('~/services/workflow_users/extract_data_service.js');
+const ExtractDataService = require('~/services/threads/extract_data_service.js');
 const { threadRun, deleteThreadMessage } = require('~/repositories/openai_repository.js');
 const { addCart } = require('~/services/carts/add_service.js');
 
@@ -22,7 +22,7 @@ class BaseAgent {
   }
 
   async run() {
-    console.info(`Running ${this.constructor.name} for workflow_user_id: ${this.workflowUser.id}`);
+    console.info(`Running ${this.constructor.name} for thread_id: ${this.workflowUser.id}`);
     this.client = await Clients().findOne('id', this.workflowUser.client_id);
     // TODO: support multiple assistants per client
     this.assistant = await ClientsAssistants().findOne('client_id', this.workflowUser.client_id);
@@ -32,7 +32,7 @@ class BaseAgent {
     this.retryCount += 1;
 
     if (this.retryCount > 5) {
-      console.error(`Retry count exceeded for ${this.constructor.name} with workflow_user_id: ${this.workflowUser.id}`);
+      console.error(`Retry count exceeded for ${this.constructor.name} with thread_id: ${this.workflowUser.id}`);
       throw new Error('Retry count exceeded');
     }
 
@@ -46,12 +46,12 @@ class BaseAgent {
   }
 
   async totalMessagesCount() {
-    const response = await Messages().where('workflow_user_id', this.workflowUser.id).count();
+    const response = await Messages().where('thread_id', this.workflowUser.id).count();
     return response[0].count;
   }
 
   async goToStatus(next_status) {
-    this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: null });
+    this.workflowUser = await Threads().updateOne(this.workflowUser, { current_step: null });
 
     return await this.createAgentRun({
       next_status,
@@ -129,8 +129,8 @@ class BaseAgent {
     return AgentRuns().insert({
       ...params,
       agent_slug: this.constructor.name,
-      workflow_user_id: this.workflowUser.id,
-      workflow_user_status: this.workflowUser.status,
+      thread_id: this.workflowUser.id,
+      thread_status: this.workflowUser.status,
     });
   }
 

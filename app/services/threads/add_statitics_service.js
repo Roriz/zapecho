@@ -1,4 +1,4 @@
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 
 module.exports = {
   addStatiticsService: async function addStatiticsService(workflowUser) {
@@ -12,7 +12,7 @@ module.exports = {
     if (!(stepCountColumn in statistics)) { statistics[stepCountColumn] = 0; }
     statistics[stepCountColumn] += 1;
     
-    await WorkflowUsers().updateOne(workflowUser, { statistics });
+    await Threads().updateOne(workflowUser, { statistics });
 
     return workflowUser
   }

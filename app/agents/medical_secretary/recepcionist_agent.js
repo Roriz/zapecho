@@ -1,5 +1,5 @@
 const { BaseAgent } = require('~/agents/base_agent.js');
-const WorkflowUsers = require('~/models/workflow_user.js');
+const Threads = require('~/models/thread.js');
 
 const BASE_PROMPT = `
 You are a medical secretary responsible for managing and responding to the clinic's digital communication channel. Your role is to craft template messages that effectively convert potential patients into actual patients or enhance their patient experience.
@@ -22,7 +22,7 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     if (this.#agentCompleted()) { return this.goToStatus('schedule_appointment'); }
 
     if (!this.workflowUser.current_step) {
-      this.workflowUser = await WorkflowUsers().updateOne(this.workflowUser, { current_step: 'greet_patient' });
+      this.workflowUser = await Threads().updateOne(this.workflowUser, { current_step: 'greet_patient' });
     }
     
     if (this.workflowUser.current_step_messages_count >= 1) {
@@ -71,7 +71,7 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
       nextStep = 'discover_appointment_type';
     }
 
-    return await WorkflowUsers().updateOne(this.workflowUser, { current_step: nextStep });
+    return await Threads().updateOne(this.workflowUser, { current_step: nextStep });
   }
 
   #prompt() {
