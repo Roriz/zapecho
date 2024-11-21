@@ -123,7 +123,7 @@ module.exports = async function whatsappReceiveService(params) {
   });
   
   if (params.messages[0].text?.body == '/reset') {
-    await WorkflowUsers().updateOne(workflowUser, { status: 'force_reset', finished_at: new Date() });
+    await WorkflowUsers().updateOne(workflowUser, { current_step: 'force_reset', finished_at: new Date() });
     return;
   }
 

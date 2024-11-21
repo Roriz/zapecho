@@ -15,9 +15,16 @@ const INVALID_VALUES = [
 
 const todayText = () => {
   const d = new Date();
-  const weekDay = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
 
-  return `${d.toISOString().split('T')[0]} (${weekDay})`;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  const weekDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+
+  return `${date} ${hour}:${minute} (${weekDay})`;
 }
 
 module.exports = {

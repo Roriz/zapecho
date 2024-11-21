@@ -17,55 +17,73 @@ Return the top 3 best date and time options in the following structured JSON for
     {
       "rank": 1,
       "reason": "Reason for this being the best choice based on the criteria."
-      "date_time": "YYYY-MM-DD HH:MM",
+      "dateTime": "YYYY-MM-DD HH:MM",
     },
     {
       "rank": 2,
       "reason": "Reason for this being the second-best choice based on the criteria."
-      "date_time": "YYYY-MM-DD HH:MM",
+      "dateTime": "YYYY-MM-DD HH:MM",
     },
     {
       "rank": 3,
       "reason": "Reason for this being the third-best choice based on the criteria."
-      "date_time": "YYYY-MM-DD HH:MM",
+      "dateTime": "YYYY-MM-DD HH:MM",
     }
   ]
 }
 \`\`\`
 `;
 
+const todayText = () => {
+  const d = new Date();
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  const weekDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+
+  return `${date} ${hour}:${minute} (${weekDay})`;
+}
+
 module.exports = {
   bestDateTimeRepository: async function bestDateTimeRepository(possibleDates, requirements = undefined) {
-    const today = new Date().toISOString().split('T')[0]
-    const weekDay = new Date().toLocaleDateString('en-US', { weekday: 'long' })
-
     const messages = [
       { role: 'system', content: PROMPT },
       {
         role: 'user',
         content: `
         ## Additional Information
-        Act like today is ${today} (${weekDay})
+        Act like today is ${todayText()}
 
         ## Should be better if
-        ${(requirements || []).map(requirement => `- ${requirement}`).join('\n')}
+        ${(Array.isArray(requirements) ? requirements : requirements ? [requirements] : []).map(requirement => `- ${requirement}`).join('\n')}
 
         ## Available Dates
-        ${possibleDates.map(isoDate => {
-          const [date, time] = isoDate.toISOString().split('T');
-          const [hour, minute] = time.split(':');
-          const weekDay = isoDate.toLocaleDateString('en-US', { weekday: 'long' });
+        ${possibleDates.map(d => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const date = `${year}-${month}-${day}`;
+          const hour = String(d.getHours()).padStart(2, '0');
+          const minute = String(d.getMinutes()).padStart(2, '0');
+          const weekDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+
           return `- ${date} ${hour}:${minute} (${weekDay})`
         }).join('\n')}
         `
       }
     ]
 
+    console.debug(`[repositories/openai/best_dateTime_repository] messages: ${messages.length}`);
+    console.debug(`[repositories/openai/best_dateTime_repository] ${JSON.stringify(messages)}`);
     const response = await completionCall(messages);
 
     return response.top_3_dates.map(d => {
-      const weekDay = new Date(d.date_time).toLocaleDateString('en-US', { weekday: 'long' });
-      return `${d.date_time} (${weekDay})`
+      const weekDay = new Date(d.dateTime).toLocaleDateString('en-US', { weekday: 'long' });
+      return `${d.dateTime} (${weekDay})`
     });
   }
 }

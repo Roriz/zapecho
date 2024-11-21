@@ -1,15 +1,26 @@
 const { queryBuilder, BaseModel } = require('./base_model.js');
 
+function isEmpty(value) {
+  return value === null || value === undefined || value === ''
+    || value === 'null' || value === 'undefined' || value === 'none'
+    || (Array.isArray(value) && value.length === 0)
+    || (typeof value === 'object' && Object.keys(value).length === 0);
+}
+
 class WorkflowUser extends BaseModel {
   static table_name = 'workflow_users';
 
-  async addAnswerData(keys) {
-    if (Object.keys(keys).length === 0) return this;
+  async addAnswerData(newAnswerData) {
+    const filledKeys = Object.keys(newAnswerData).filter(key => !isEmpty(newAnswerData[key]));
+
+    if (Object.keys(filledKeys).length === 0) return this;
+
+    const filledNewAnswerData = filledKeys.reduce((acc, key) => ({ ...acc, [key]: newAnswerData[key] }), {});
 
     const workflowUser = await queryBuilder(WorkflowUser).updateOne(this, {
       answers_data: {
         ...this.answers_data,
-        ...keys
+        ...filledNewAnswerData
       }
     });
 

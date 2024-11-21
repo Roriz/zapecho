@@ -70,7 +70,7 @@ module.exports = async function medicalSecretaryWorkflow(workflowUser) {
   const channelId = lastUnrespondedMessages.at(-1).channel_id;
   
   const extractedData = await ExtractDataService(workflowUser, DATA_TO_EXTRACT);
-  workflowUser = await WorkflowUsers().updateOne(workflowUser, { answers_data: extractedData });
+  workflowUser = await workflowUser.addAnswerData(extractedData);
   // TODO: improve the guard rails
   if (workflowUser.answers_data?.message_is_irrelevant) {
     Messages().where('id', lastUnrespondedMessages.map(m => m.id)).update({ ignored_at: new Date() }); 

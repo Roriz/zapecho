@@ -4,19 +4,30 @@ const envParams = require('#/configs/env_params.js');
 const { availableSlots } = require('~/services/calendar/available_slots.js')
 const { GoogleCalendarRepository } = require('~/repositories/google_calendar_repository.js')
 
-const nextDay = (dateString = undefined) => {
-  let tomorrow = new Date();
-  if (dateString) { tomorrow = new Date(dateString); }
+const getTomorrow = (timeZone) => {
+  let tomorrow = new Date(new Date().toLocaleString("en-US", { timeZone }));
 
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
+  
+  const year = tomorrow.getFullYear();
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 const todayText = () => {
   const d = new Date();
-  const weekDay = new Date(d).toLocaleDateString('en-US', { weekday: 'long' });
 
-  return `${d.toISOString().split('T')[0]} (${weekDay})`;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  const weekDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+
+  return `${date} ${hour}:${minute} (${weekDay})`;
 }
 
 const BASE_PROMPT = `
@@ -32,7 +43,7 @@ You have full discretion over the conversation flow, meaning there is no strict 
 The following suggested actions can be used as needed to proceed through the conversation smoothly:
 1. **Suggest Available Appointment Times**:
   - Proactively suggest two of the best available appointment slots that match the doctor’s schedule.
-  - Alternatively, if the patient inquires about a specific date, use the \`{{ save_data(appointment_search_date: datetime, appointment_search_preferences: string) }}\` function to check the doctor's availability.
+  - Alternatively, if the patient inquires about a specific date, use the \`{{ save_data(appointment_search_date: datetime, appointment_search_preferences: string[]) }}\` function to check the doctor's availability.
    
 2. **Confirm Appointment**:
   - Once the patient chooses a time, provide a clear and polite appointment confirmation with the date and time.
@@ -110,14 +121,14 @@ class MedicalSecretarySchedulerAgent extends BaseAgent {
   async #nextStep() {
     let nextStep = 'search_availabilities_for';
     
-    if (this.answerData.appointment_date_ISO8601) {
-      nextStep = 'confirm_appointment';
+    if (this.answerData.appointment_search_date) {
+      this.workflowUser = await this.workflowUser.delAnswerData('suggested_appointment_time_rejected');
+      nextStep = 'suggest_appointment_times';
     } else if (this.answerData.suggested_appointment_time_rejected) {
       this.workflowUser = await this.workflowUser.delAnswerData('appointment_date_ISO8601');
       nextStep = 'search_availabilities_for';
-    } else if (this.answerData.appointment_search_date) {
-      this.workflowUser = await this.workflowUser.delAnswerData('suggested_appointment_time_rejected');
-      nextStep = 'suggest_appointment_times';
+    } else if (this.answerData.appointment_date_ISO8601) {
+      nextStep = 'confirm_appointment';
     }
 
     return await WorkflowUsers().updateOne(this.workflowUser, { current_step: nextStep });
@@ -136,15 +147,16 @@ Send the patient to the next step to schedule an appointment.
 Call this addon when you have confidence that the items appointment_date_ISO8601 has been defined.`
 
     if (this.workflowUser.current_step == 'suggest_appointment_times') {
-      const baseDate = this.answerData.appointment_search_date || nextDay();
-      const slots = await availableSlots(this.workflowUser.client_id, baseDate, this.answerData.appointment_search_preference);
+      const timeZone = this.client.metadata?.time_zone || 'America/Sao_Paulo';
+      const baseDate = this.answerData.appointment_search_date || getTomorrow(timeZone);
+      const slots = await availableSlots(this.workflowUser.client_id, baseDate, this.answerData.appointment_search_preferences);
 
       prompt += `\n### Available slots
 ${slots.map(slot => `- ${slot}`).join('\n')}`
     } else if (this.workflowUser.current_step == 'confirm_appointment') {
-      prompt += `### Appointment confirmation
-      The patient has chosen the following appointment date and time: ${this.answerData.appointment_date_ISO8601}
-      `
+      prompt += `
+### Appointment confirmation
+The patient has chosen the following appointment date and time: ${this.answerData.appointment_date_ISO8601}`
     }
 
     return `${prompt}\n${this.#step.objective}`
@@ -160,7 +172,8 @@ ${slots.map(slot => `- ${slot}`).join('\n')}`
       descriptions.push(`- ${key}: ${value.description}`);
     }
 
-    return `#### addon {{ save_data(${args.join(', ')}) }}
+    return `
+#### addon {{ save_data(${args.join(', ')}) }}
 Save the data extracted from the patient's response. Use the following arguments:
 ${descriptions.join('\n')}`
   }
@@ -172,8 +185,7 @@ ${descriptions.join('\n')}`
 ### Objective
 You are on step suggest_appointment_times.
 You will receive the two best available appointment times, and you should suggest them to the patient.
-If patient accepts the suggested time, call the addon {{ save_data(appointment_date_ISO8601: string) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}
-`,
+If patient accepts the suggested time, call the addon {{ save_data(appointment_date_ISO8601: string) }}, but if the patient rejects the suggested time, call the addon {{ save_data(suggested_appointment_time_rejected: boolean) }}`,
         dataToExtract: {
           appointment_date_ISO8601: {
             type: 'string',
@@ -189,16 +201,17 @@ If patient accepts the suggested time, call the addon {{ save_data(appointment_d
         objective: `
 ### Objective
 You are on step search_availabilities_for.
-Ask the patient for a specific date and save the search_date with {{ save_data(appointment_search_date: datetime, appointment_search_preferences: string) }}
+Ask the patient for a specific date and save the search_date with {{ save_data(appointment_search_date: datetime, appointment_search_preferences: string[]) }}
 Patient`,
         dataToExtract: {
           appointment_search_date: {
             type: 'string',
             description: 'The date the patient is looking for an appointment. date in the format `YYYY-MM-DD`'
           },
-          appointment_search_preference: {
-            type: 'string',
-            description: 'The patient has any preferences for the appointment schedule date and time. E.g. "morning", "afternoon"',
+          appointment_search_preferences: {
+            type: 'array',
+            description: 'The patient has any preferences for the appointment. Can be a period of the day, a specific doctor, or any other preference.',
+            items: { type: 'string' }
           },
         }
       },

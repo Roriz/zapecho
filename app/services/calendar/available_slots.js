@@ -26,17 +26,17 @@ function filterAvailableSlots(allSlots, busySlots) {
 }
 
 // TODO: create feat to get start and end of day from client
-function getStartAndEndOfDay(date) {
-  const startOfDay = new Date(date);
+function getStartAndEndOfDay(dateString) {
+  const startOfDay = new Date(dateString);
   startOfDay.setHours(9, 0, 0, 0);
-  const endOfDay = new Date(date);
+  const endOfDay = new Date(dateString);
   endOfDay.setHours(17, 59, 59, 999);
   return { startOfDay, endOfDay };
 }
 
-async function availableSlots(clientId, date, preferences) {
+async function availableSlots(clientId, dateString, preferences) {
   const client = await Clients().findOne('id', clientId);
-  const { startOfDay, endOfDay } = getStartAndEndOfDay(date);
+  const { startOfDay, endOfDay } = getStartAndEndOfDay(dateString);
   const slotDurationInMinutes = client.metadata?.appointment_duration || 60;
 
   const allSlots = generateTimeSlots(startOfDay, endOfDay, slotDurationInMinutes);

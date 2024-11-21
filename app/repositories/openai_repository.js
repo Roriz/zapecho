@@ -19,7 +19,7 @@ function openaiSDK() {
 function _extract_functions(message) {
   if (!message) return {};
 
-  const calls = message.match(/{{\s*\(.+\)\s*}}/g) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
+  const calls = message.match(/{{\s*\w+\(.*\)\s*}}/g) || []; // {{ example_function(arg1: 'a', arg2: ['c', 'd']) }}
 
   const functions = calls.map(call => {
     let [_, name, raw_arguments] = call.match(/(\w+)\((.*?)\)/); // _, example_function, arg1: 'a', arg2: ['c', 'd']
@@ -41,7 +41,7 @@ function _extract_functions(message) {
 function _extract_variables(message) {
   if (!message) return {};
 
-  const calls = message.match(/{{\s*(\w+)\s*}}/g) || []; // {{ example_variable }}
+  const calls = message.match(/{{\s*\w+\s*}}/g) || []; // {{ example_variable }}
   const variables = calls.map(call => {
     let [_, name] = call.match(/\w+/); // _, example_variable
 
