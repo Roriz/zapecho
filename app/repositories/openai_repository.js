@@ -51,6 +51,24 @@ function _extract_variables(message) {
   return fromPairs(variables); // { example_variable: { name: 'example_variable' } } }
 }
 
+function convertMessagesToOpenai(messages) {
+  const SENDER_TYPE_TO_ROLE = {
+    'user': 'user',
+    'agent': 'assistant',	
+  }
+
+  return messages.map(m => {
+    const role = SENDER_TYPE_TO_ROLE[m.sender_type]
+
+    if (!role) return
+
+    return {
+      role: SENDER_TYPE_TO_ROLE[m.sender_type],
+      content: m.body
+    }
+  }).filter(m => m)
+}
+
 async function threadRun(thread_id, assistant_id, prompt) {
   const agentRunParams = {
     message_body: undefined,
@@ -131,8 +149,16 @@ async function completionCall(messages, options = {}) {
 module.exports = {
   default: openaiSDK,
   openaiSDK,
+  openaiFunctions: {
+    threadRun,
+    deleteThreadMessage,
+    completionCall,
+    functionCall,
+    convertMessagesToOpenai
+  },
   threadRun,
   deleteThreadMessage,
   completionCall,
-  functionCall
+  functionCall,
+  convertMessagesToOpenai
 }

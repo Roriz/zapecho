@@ -11,6 +11,7 @@
 - create workflow to support more than 1 product to 1 schedule (like sales products or services)
 - create workflow to support 1 product to multiple schedules (medical clinic with mutiple medics with same product or barber shop)
 - unify slots interface
+- rename agentRun to threadRun
 
 ## Agent
 Agent is a autonomous entity that can perform actions on behalf of a user. Agents are small tasks resolver like discover the user intent or find the best date and time. Agents are the building blocks of the workflow.
@@ -25,7 +26,7 @@ guard_rails - a set of rules to block or filter topics that are not allowed to b
 message - a text/image/file that is sent or received by the user
 
 ### Use cases
-receive_message -> messages -> workflow -> guard_rails -> thread -> agent_runs -> thread -> messages -> response_message
+receive_message -> save message -> get workflow -> exec guard_rails -> run thread + agent -> run critic agent -> send best response
 
 ### Agent run
 Is the output of the agent, usually a message, function or a variable. A agent run is not restricted to a LLM model, it can be a bussiness rule, a function, a static message, ML model, etc. There is no restriction on how the agent run is implemented.

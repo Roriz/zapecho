@@ -14,9 +14,9 @@ const DATA_TO_EXTRACT = {
   // TODO: create a blocklist of topics
 }
 
-module.exports = async function extract_data_service(workflowUser, data_to_extract) {
-  let lastRelevantMessages = await Messages().lastRelevantMessages(workflowUser.id);
-  const client = await Clients().findOne('id', workflowUser.client_id);
+module.exports = async function extract_data_service(thread, data_to_extract) {
+  let lastRelevantMessages = await Messages().lastRelevantMessages(thread.id);
+  const client = await Clients().findOne('id', thread.client_id);
   lastRelevantMessages = lastRelevantMessages.filter((message) => message.body !== client.findable_message);
   
   let extractedData = await dataExtractor(lastRelevantMessages, {

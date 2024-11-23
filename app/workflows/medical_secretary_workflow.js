@@ -77,7 +77,7 @@ module.exports = async function medicalSecretaryWorkflow(workflowUser) {
     return workflowUser;
   } else if (workflowUser.answers_data?.user_want_to_stop_the_conversation) {
     workflowUser = await Threads().updateOne(workflowUser, { status: 'cancelled', finished_at: new Date() });
-  } 
+  }
   
   if (!workflowUser.status) {
     workflowUser = await Threads().updateOne(workflowUser, { status: FIRST_STATUS });

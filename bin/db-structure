@@ -1,0 +1,3 @@
+#!/bin/sh
+
+pg_dump --schema-only --no-owner --file=migrations/structure.sql postgresql://dev:localhost@localhost:5432/zapecho_development
