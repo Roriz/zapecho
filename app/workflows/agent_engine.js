@@ -2,6 +2,7 @@ const { guardRails } = require('~/services/guard_rails/guard_last_messages');
 const ExtractDataService = require('~/services/threads/extract_data_service.js');
 const { openaiSDK, openaiFunctions } = require('~/repositories/openai_repository.js');
 const { addMessageToThread } = require('~/repositories/openai/add_message_to_thread_repository.js');
+const { whatsappHumanSendMessages } = require('~/services/whatsapp/human_send_service.js');
 const Messages = require('~/models/message.js');
 const Threads = require('~/models/thread.js');
 const AgentRuns = require('~/models/agent_run.js');
@@ -26,7 +27,11 @@ async function threadRun(thread, prompt) {
     return message;
   }));
   
-  const openaiRun = await openaiFunctions.threadRun(thread.openai_thread_id, thread.assistant_id, prompt);
+  const openaiRun = await openaiFunctions.threadRun(
+    thread.openai_thread_id,
+    thread.assistant_id,
+    prompt
+  );
   
   return await AgentRuns().insert({
     ...openaiRun,
@@ -65,9 +70,31 @@ async function agentRun(agent) {
   return run;
 }
 
+async function sendResponse(thread, run) {
+  const lastMessage = await Messages().where('thread_id', thread.id).orderBy('created_at', 'desc').limit(1)[0];
+
+  const contextVariables = {
+    client_name: 'client_name',
+    clinic_address: 'clinic_address',
+    clinic_phone: 'clinic_phone',
+    clinic_website: 'clinic_website',
+    assistant_name: 'assistant_name',
+  };
+
+  run.compiled_message_body = run.message_body;
+  run.variables.forEach(variable => {
+    run.compiled_message_body = run.compiled_message_body.replaceAll(
+      variable.raw,
+      contextVariables[variable.name]
+    ).trim();
+  });
+
+  return await whatsappHumanSendMessages(run, lastMessage.channel_id);
+}
+
 const FIRST_STATUS = 'new'
 module.exports = {
-  agentEngineOpenai: async function agentEngineOpenai(threadId, agents) {
+  agentEngine: async function agentEngine(threadId, agents) {
     console.info(`[agentEngineOpenai][${threadId}] starting`);
     let thread = await Threads().findOne('id', threadId);
 

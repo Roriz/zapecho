@@ -20,31 +20,31 @@ async function _migrateLatestMessages(oldThread, newThread) {
   );
 }
 
-module.exports = async function runWorkflow(workflowUserId) {
-  const workflowUser = await Threads().findOne('id', workflowUserId);
-  const workflow = await Workflows().findOne('id', workflowUser.workflow_id);
+module.exports = async function runWorkflow(threadId) {
+  const thread = await Threads().findOne('id', threadId);
+  const workflow = await Workflows().findOne('id', thread.workflow_id);
 
-  if (workflowUser.is_running) { console.warn(`Workflow ${workflow.slug} is already running`); return; }
+  if (thread.is_running) { console.warn(`Workflow ${workflow.slug} is already running`); return; }
 
   const runner = WORKFLOW_TO_RUNNER[workflow.slug];
   if (!runner) { throw new Error(`Workflow runner not found for workflow ${workflow.slug}`); }
 
-  await Threads().updateOne(workflowUser, {
+  await Threads().updateOne(thread, {
     is_running: true,
     last_runned_failed_at: null,
   });
 
   try {
     await db().transaction(async () => {
-      const runnerThread = await runner()(workflowUser);
+      const runnerThread = await runner()(thread);
 
-      await Threads().updateOne(workflowUser, {
+      await Threads().updateOne(thread, {
         is_running: false,
         last_runned_finished_at: new Date(),
       });
 
-      if (runnerThread.id !== workflowUser.id) {
-        await _migrateLatestMessages(workflowUser, runnerThread);
+      if (runnerThread.id !== thread.id) {
+        await _migrateLatestMessages(thread, runnerThread);
         await runWorkflow(runnerThread)
       }
     })
@@ -52,9 +52,9 @@ module.exports = async function runWorkflow(workflowUserId) {
     console.error({
       code: 'workflows/run_service',
       error,
-      payload: JSON.stringify({ workflowUserId, error })
+      payload: JSON.stringify({ threadId, error })
     });
-    await Threads().updateOne(workflowUser, {
+    await Threads().updateOne(thread, {
       is_running: false,
       last_runned_failed_at: new Date(),
     });

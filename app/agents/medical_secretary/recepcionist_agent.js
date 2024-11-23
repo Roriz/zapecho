@@ -16,24 +16,71 @@ Use the suggested sequence below as a guide for your conversation. However, feel
 `
 
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
-  async run() {
-    await super.run();
+  isCompleted() {
+    return this.thread.answerData.appointment_type
+  }
 
-    if (this.#agentCompleted()) { return this.goToStatus('schedule_appointment'); }
+  async success() {
+    this.thread = await Threads().updateOne(this.thread, { current_step: null });
+
+    return await AgentRuns().insert({
+      thread_id: this.thread.id,
+      thread_status: this.thread.status,
+      next_status: 'schedule_appointment',
+      is_complete: true,
+    });
+  }
+  
+  get #step() {
+    return this.#steps[this.thread.current_step];
+  }
+  
+  get #steps() {
+    return {
+      greet_patient: {
+        objective: 'You are on step greet_patient. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
+        dataToExtract: {
+          want_to_schedule_appointment: {
+            type: 'boolean',
+            description: 'The patient wants to schedule an appointment.'
+          }
+        }
+      },
+      discover_appointment_type: {
+        objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Once you have enough data to determine the type, call the addon {{ save_data(appointment_type: string) }}',
+        dataToExtract: {
+          appointment_type: {
+            type: 'string',
+            description: 'The type of appointment the patient is looking for. Possible values: initial, follow-up',
+            enum: ['initial', 'follow-up']
+          }
+        }
+      }
+    }
+  }
+
+  dataToExtraction() {
+    return this.#step.dataToExtract;
+  }
+
+  prompt() {
+    return `${BASE_PROMPT}
+# Addons available:
+${this.#saveDataAddonPrompt()}
+
+#### addon {{ go_to_schedule_appointment() }}
+Send the patient to the next step to schedule an appointment.
+Call this addon when you have confidence that pass through all suggested steps.
+
+### Objective
+${this.#step.objective}`
+  }
+
+
 
     if (!this.workflowUser.current_step) {
       this.workflowUser = await Threads().updateOne(this.workflowUser, { current_step: 'greet_patient' });
     }
-    
-    if (this.workflowUser.current_step_messages_count >= 1) {
-      const extractedData = await this.extractData(this.#step?.dataToExtract);
-      if (Object.keys(extractedData).length) {
-        this.workflowUser = await this.#nextStep();
-        return this.rerun();
-      }
-    }
-
-    if (this.answerData.appointment_type === 'follow-up') { return this.goToStatus('schedule_appointment'); }
 
     const agentRun = await this.threadRun(this.#prompt());
 
@@ -95,10 +142,6 @@ ${this.#step.objective}`
     return this.#steps[this.workflowUser.current_step];
   }
 
-  #agentCompleted() {
-    return this.answerData.appointment_type 
-  }
-
   #saveDataAddonPrompt() {
     if (!Object.keys(this.#step.dataToExtract).length) { return ''; }
     
@@ -114,29 +157,6 @@ Save the data extracted from the patient's response. Use the following arguments
 ${descriptions.join('\n')}`
   }
 
-  get #steps() {
-    return {
-      greet_patient: {
-        objective: 'You are on step greet_patient. Focus on engaging the patient and finding out if they are returning. Avoid being too pushy.',
-        dataToExtract: {
-          want_to_schedule_appointment: {
-            type: 'boolean',
-            description: 'The patient wants to schedule an appointment.'
-          }
-        }
-      },
-      discover_appointment_type: {
-        objective: 'You are on step discover_appointment_type. Focus on determining the appointment type. Once you have enough data to determine the type, call the addon {{ save_data(appointment_type: string) }}',
-        dataToExtract: {
-          appointment_type: {
-            type: 'string',
-            description: 'The type of appointment the patient is looking for. Possible values: initial, follow-up',
-            enum: ['initial', 'follow-up']
-          }
-        }
-      }
-    }
-  }
 }
 
 module.exports = { MedicalSecretaryRecepcionistAgent }
