@@ -1,4 +1,4 @@
-const { functionCall, convertMessagesToOpenai } = require('~/repositories/openai_repository');
+const { functionCall, openaiFunctions } = require('~/repositories/openai_repository');
 
 const CONVERSATION_PROMPT = `
 Act as a content moderator and decide if the last messages are relevant to the conversation.
@@ -35,7 +35,7 @@ async function guardLastMessages(agent) {
         role: 'system',
         content: `${CONVERSATION_PROMPT}\n\nThe conversation should involve: ${agent.conversationScope()}`
       },
-      ...convertMessagesToOpenai(lastRelevantMessages),
+      ...openaiFunctions.convertMessagesToOpenai(lastRelevantMessages),
     ]
     
     const response = await functionCall(messages, SCOPE_FUNCTION, { temperature: 0 });

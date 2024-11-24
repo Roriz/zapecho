@@ -114,10 +114,6 @@ async function threadRun(thread_id, assistant_id, prompt) {
   return agentRunParams;
 }
 
-function deleteThreadMessage(thread_id, message_id) {
-  return openaiSDK().beta.threads.messages.del(thread_id, message_id);
-}
-
 async function functionCall(messages, functionAndSchema, options = { model, temperature }) {
   const response = await openaiSDK().chat.completions.create({
     messages,
@@ -145,20 +141,15 @@ async function completionCall(messages, options = {}) {
   return JSON.parse(response.choices[0].message.content);
 }
 
-
 module.exports = {
   default: openaiSDK,
   openaiSDK,
+  completionCall,
+  functionCall,
   openaiFunctions: {
     threadRun,
-    deleteThreadMessage,
     completionCall,
     functionCall,
     convertMessagesToOpenai
   },
-  threadRun,
-  deleteThreadMessage,
-  completionCall,
-  functionCall,
-  convertMessagesToOpenai
 }

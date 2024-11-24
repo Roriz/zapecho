@@ -1,3 +1,4 @@
+const camelCase = require('lodash/camelCase');
 const { guardRails } = require('~/services/guard_rails/guard_last_messages');
 const ExtractDataService = require('~/services/threads/extract_data_service.js');
 const { openaiSDK, openaiFunctions } = require('~/repositories/openai_repository.js');
@@ -40,39 +41,7 @@ async function threadRun(thread, prompt) {
   });
 }
 
-async function agentRun(agent) {
-  if (await agent.isCompleted()) { return agent.success(); }
-
-  await agent.beforeExtract()
-  
-  const extractedData = await ExtractDataService(agent.thread, agent.dataToExtraction());
-  if (Object.keys(extractedData).length) {
-    await agent.onDataChange(extractedData);
-    agent.thread = await agent.thread.addAnswerData(extractedData);
-
-    if (await agent.isCompleted()) { return agent.success(); }
-  }
-
-  await agent.beforeRun()
-
-  const run = await threadRun(agent.thread, agent.prompt());
-
-  for (const func in run.functions) {
-    const functioName = `on${func.charAt(0).toUpperCase()}${func.slice(1)}`;
-    if (agent[functioName] && typeof agent[functioName] === 'function') {
-      await agent[functioName](run.functions[func].arguments);
-    }
-  }
-  // TODO: function save_data
-  // TODO: function change_step
-  await agent.afterRun()
-
-  return run;
-}
-
-async function sendResponse(thread, run) {
-  const lastMessage = await Messages().where('thread_id', thread.id).orderBy('created_at', 'desc').limit(1)[0];
-
+function compileMessage(run) {
   const contextVariables = {
     client_name: 'client_name',
     clinic_address: 'clinic_address',
@@ -82,14 +51,77 @@ async function sendResponse(thread, run) {
   };
 
   run.compiled_message_body = run.message_body;
-  run.variables.forEach(variable => {
+  Object.values(run.variables || {}).forEach(variable => {
     run.compiled_message_body = run.compiled_message_body.replaceAll(
       variable.raw,
       contextVariables[variable.name]
     ).trim();
   });
 
-  return await whatsappHumanSendMessages(run, lastMessage.channel_id);
+  return run;
+}
+
+
+function saveDataAddonPrompt(dataToExtract) {
+  if (!Object.keys(dataToExtract).length) { return ''; }
+  
+  const args = [];
+  const descriptions = [];
+  for (const [key, value] of Object.entries(dataToExtract)) {
+    args.push(`${key}?: ${value.type}`);
+    descriptions.push(`- ${key}: ${value.description}`);
+  }
+
+  return `#### addon {{ save_data(${args.join(', ')}) }}
+Save the data extracted from the user's response. Use the following arguments:
+${descriptions.join('\n')}`
+}
+
+const BASE_PROMPT = ``
+
+function generateFullPrompt(agent) {
+  return `${BASE_PROMPT}
+
+${agent.prompt()}
+
+${saveDataAddonPrompt(agent.dataToExtract())}`;
+}
+
+async function agentRun(agent) {
+  if (await agent.isCompleted()) { return agent.success(); }
+
+  const extractedData = await ExtractDataService(agent.thread, agent.dataToExtraction());
+  if (Object.keys(extractedData).length) {
+    await agent.onDataChange(extractedData);
+
+    if (await agent.isCompleted()) { return agent.success(); }
+  }
+
+  await agent.onBeforeRun()
+
+  let run = await threadRun(agent.thread, generateFullPrompt(agent));
+
+  for (const func in Object.values(run.functions)) {
+    const functioName = `on${func.name.charAt(0).toUpperCase()}${camelCase(func.name.slice(1))}`;
+    if (agent[functioName] && typeof agent[functioName] === 'function') {
+      const runUpdated = await agent[functioName](func.arguments, run);
+      if (runUpdated) { run = runUpdated; }
+    }
+  }
+  // TODO: function save_data
+  // TODO: function change_step
+  const runUpdated = await agent.onAfterRun(run);
+  if (runUpdated) { run = runUpdated; }
+
+  if (run.force_rerun) {
+    await openaiSDK().beta.threads.messages.del(agent.thread.openai_thread_id, run.openai_message_id);
+    return await agentRun(agent);
+  }
+
+  run = compileMessage(run);
+  await AgentRuns().updateOne(run, run);
+
+  return run;
 }
 
 const FIRST_STATUS = 'new'
@@ -106,15 +138,18 @@ module.exports = {
     const reason = await guardRails.guardLastMessages(agent);
     if (reason) { throw new Error(`[agentEngineOpenai][${thread.id}] guard rails failed: ${reason}`); } // skip?
 
+    const lastMessage = await Messages().where('thread_id', thread.id).orderBy('created_at', 'desc').limit(1)[0];
     let statusHistory = [];
     do {
       statusHistory.push(thread.status);
       if (statusHistory.length > 5) { throw new Error(`[agentEngineOpenai][${thread.id}] Status loop detected - ${statusHistory.join(' -> ')}`); } // TODO: call the boss agent
 
       const run = await agentRun(agent);
-      // TODO: break the loop if user send a message
 
-      if (run?.message_body) { await sendResponse(thread, run); }
+      const lm = await Messages().where('thread_id', thread.id).orderBy('created_at', 'desc').limit(1)[0];
+      if (lm.id !== lastMessage.id) { throw new Error(`[agentEngineOpenai][${thread.id}] New message detected`); } // skip?
+
+      if (run?.message_body) { await whatsappHumanSendMessages(run, lastMessage.channel_id); }
       if (run?.next_status) { thread = await Threads().updateOne(thread, { status: run.next_status }); }
     } while (run?.next_status);
 

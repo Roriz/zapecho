@@ -16,8 +16,16 @@ Use the suggested sequence below as a guide for your conversation. However, feel
 `
 
 class MedicalSecretaryRecepcionistAgent extends BaseAgent {
-  isCompleted() {
-    return this.thread.answerData.appointment_type
+  prompt() {
+    return `${BASE_PROMPT}
+# Addons available:
+
+#### addon {{ go_to_schedule_appointment() }}
+Send the patient to the next step to schedule an appointment.
+Call this addon when you have confidence that pass through all suggested steps.
+
+### Objective
+${this.#step.objective}`
   }
 
   async success() {
@@ -30,9 +38,13 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
       is_complete: true,
     });
   }
-  
+
+  isCompleted() {
+    return this.thread.answerData.appointment_type
+  }
+
   get #step() {
-    return this.#steps[this.thread.current_step];
+    return this.#steps[this.thread.current_step] || this.#steps.greet_patient;
   }
   
   get #steps() {
@@ -63,100 +75,27 @@ class MedicalSecretaryRecepcionistAgent extends BaseAgent {
     return this.#step.dataToExtract;
   }
 
-  prompt() {
-    return `${BASE_PROMPT}
-# Addons available:
-${this.#saveDataAddonPrompt()}
-
-#### addon {{ go_to_schedule_appointment() }}
-Send the patient to the next step to schedule an appointment.
-Call this addon when you have confidence that pass through all suggested steps.
-
-### Objective
-${this.#step.objective}`
+  onGoToScheduleAppointment() {
+    return AgentRuns().insert({
+      thread_id: this.thread.id,
+      thread_status: this.thread.status,
+      next_status: 'schedule_appointment',
+      is_complete: true,
+      force_rerun: true,
+    });
   }
 
-
-
-    if (!this.workflowUser.current_step) {
-      this.workflowUser = await Threads().updateOne(this.workflowUser, { current_step: 'greet_patient' });
-    }
-
-    const agentRun = await this.threadRun(this.#prompt());
-
-    if (agentRun.functions?.go_to_schedule_appointment) {
-      return this.goToStatus('schedule_appointment');
-    }
-
-    if (agentRun.functions?.save_data) {
-      const newData = await this.addAnswerData(agentRun.functions?.save_data.arguments);
-      
-      if (Object.keys(newData).length) {
-        await this.deleteThreadRun();
-        this.workflowUser = await this.#nextStep();
-        return this.rerun();
-      }
-    }
-
-    if (agentRun.functions?.change_step) {
-      const newStep = agentRun.functions.change_step.arguments.step_name;
-
-      if (newStep in this.#steps) {
-        this.workflowUser = await this.workflowUser.updateOne(this.workflowUser, { current_step: newStep });
-        await this.deleteThreadRun();
-        return this.rerun();
-      }
-    }
-
-    return agentRun;
-  }
-
-  async #nextStep() {
+  async onDataChange(changedData) {
+    await super.onDataChange(changedData);
+    
     let nextStep = 'greet_patient';
     
-    if (this.answerData.want_to_schedule_appointment) {
+    if (this.thread.answerData.want_to_schedule_appointment) {
       nextStep = 'discover_appointment_type';
     }
 
     return await Threads().updateOne(this.workflowUser, { current_step: nextStep });
   }
-
-  #prompt() {
-    return `${BASE_PROMPT}
-# Addons available:
-${this.#saveDataAddonPrompt()}
-
-#### addon {{ go_to_schedule_appointment() }}
-Send the patient to the next step to schedule an appointment.
-Call this addon when you have confidence that pass through all suggested steps.
-
-#### addon {{ change_step(step_name: string) }}
-Change the current step to the specified step. Possible values: ${Object.keys(this.#steps).join(', ')}
-Call {{ change_step(step_name: string) }} if the conversation is not aligned with the objective.
-
-### Objective
-${this.#step.objective}`
-  }
-  
-  get #step() {
-    return this.#steps[this.workflowUser.current_step];
-  }
-
-  #saveDataAddonPrompt() {
-    if (!Object.keys(this.#step.dataToExtract).length) { return ''; }
-    
-    const args = [];
-    const descriptions = [];
-    for (const [key, value] of Object.entries(this.#step.dataToExtract)) {
-      args.push(`${key}?: ${value.type}`);
-      descriptions.push(`- ${key}: ${value.description}`);
-    }
-
-    return `#### addon {{ save_data(${args.join(', ')}) }}
-Save the data extracted from the patient's response. Use the following arguments:
-${descriptions.join('\n')}`
-  }
-
 }
 
 module.exports = { MedicalSecretaryRecepcionistAgent }
